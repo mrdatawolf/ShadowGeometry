@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ShadowGeometry · Beyond the plane</title><link rel="stylesheet" href="style.css">
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+</head>
+<body>
+  <header class="page-header"><div><p class="eyebrow">A COSMOLOGY IN THREE DIMENSIONS</p><h1>ShadowGeometry</h1></div>
+  <nav class="view-tabs" role="tablist" aria-label="Viewing mode"><button id="flat-tab" role="tab" aria-selected="true" aria-controls="explorer-panel">2D</button><button id="explorer-tab" role="tab" aria-selected="false" aria-controls="explorer-panel" tabindex="-1">3D</button><button id="stereo-tab" role="tab" aria-selected="false" aria-controls="stereo-panel" tabindex="-1">Stereo</button></nav>
+  </header>
+  <main id="explorer-panel" role="tabpanel" aria-labelledby="flat-tab">
+    <section id="scene-card" class="scene-card" aria-label="Interactive six forces geometry">
+      <div id="viewport"><div id="point-labels"></div><p id="boot-message">Loading visualization… If this remains visible, serve this directory over HTTP. Local files may block ES modules; the CDN requires internet access.</p></div>
+      <footer><span id="interaction-hint">The visible plane</span><span><i class="primal"></i> Primal <i class="derived"></i> Derived</span></footer>
+    </section>
+    <aside>
+      <section class="panel"><p class="eyebrow" id="panel-caption">THE FIRST VIEW</p><div id="stage-text"></div>
+        <div id="shadow-tool" hidden>
+          <label class="snap-control"><input id="snap-vertices" type="checkbox" checked> Snap nearby vertices into alignment</label>
+          <div class="snap-distance-control"><label for="snap-distance" title="Larger distances make nearby points easier to align.">Snap distance</label><output id="snap-distance-value" for="snap-distance">18 px</output><input id="snap-distance" type="range" min="4" max="80" step="1" value="18" title="Larger distances make nearby points easier to align."><button id="snap-distance-default" type="button" aria-label="Restore default snap distance of 18 pixels">Default</button></div>
+          <p id="shadow-shape" role="status" aria-live="polite">Checking silhouette…</p>
+          <p id="snap-status" role="status" aria-live="polite">Release a drag near an overlap to snap the view.</p><canvas id="shadow" aria-label="Live orthographic shadow of the twelve outer vertices"></canvas><form id="save-angle"><label for="slice-name">Bookmark this perspective</label><div class="row"><input id="slice-name" placeholder="Name this angle" maxlength="120" required><button>Save this angle</button></div></form><ul id="bookmarks"></ul></div>
+      </section>
+      <details class="panel"><summary>Labels & saved perspectives</summary><p>Names change the display; the relationships keep their identity. Edits save in this browser.</p><div id="label-editor"></div><div class="row"><button id="export">Export JSON</button><button id="import">Import JSON</button><input id="import-file" type="file" accept="application/json,.json" hidden></div><p id="status" role="status" aria-live="polite"></p></details>
+    </aside>
+  </main>
+  <section id="stereo-panel" role="tabpanel" aria-labelledby="stereo-tab" hidden>
+    <div id="stereo-card" class="scene-card">
+      <div class="stereo-settings"><button id="stereo-home">Reset view</button><div class="stereo-slider"><label for="stereo-spacing">Image spacing (center to center) <output id="stereo-spacing-value" for="stereo-spacing">29 em</output><input id="stereo-spacing" type="range" min="8" max="40" step="0.5" value="29"></label><button id="stereo-spacing-default" type="button">Default</button></div><div class="stereo-slider"><label for="stereo-separation">Stereo angle (depth) <output id="stereo-separation-value" for="stereo-separation">4°</output><input id="stereo-separation" type="range" min="0" max="12" step="0.5" value="4"></label><button id="stereo-separation-default" type="button" aria-label="Restore default stereo separation of 4 degrees">Default</button></div><label class="snap-control"><input id="stereo-labels" type="checkbox"> Show labels</label></div>
+      <div id="stereo-viewport"><div class="stereo-overlay"><div class="stereo-eye"><span class="eye-caption">Right-eye view</span><div id="stereo-left-labels" class="stereo-labels"></div><span class="fusion-mark" aria-hidden="true">+</span></div><div class="stereo-eye"><span class="eye-caption">Left-eye view</span><div id="stereo-right-labels" class="stereo-labels"></div><span class="fusion-mark" aria-hidden="true">+</span></div></div><p id="stereo-message" role="status">Opening stereo view…</p></div>
+      <footer><span id="stereo-status">Drag to orbit · stereo separation adjusts depth</span><span><i class="primal"></i> Primal <i class="derived"></i> Derived</span></footer>
+      <section class="stereo-bookmark-panel" aria-labelledby="stereo-bookmarks-title"><h2 id="stereo-bookmarks-title">Saved perspectives</h2><div class="stereo-bookmark-layout"><form id="stereo-save-angle"><label for="stereo-slice-name">Bookmark this perspective</label><div class="row"><input id="stereo-slice-name" placeholder="Name this angle" maxlength="120" required><button>Save this angle</button></div></form><div class="stereo-bookmark-list"><p id="stereo-bookmarks-empty">No saved perspectives yet. Save an angle here or in 3D.</p><ul id="stereo-bookmarks"></ul></div></div></section>
+    </div>
+  </section>
+  <script id="default-labels" type="application/json">{"a":"A","b":"B","c":"C","d":"D","e":"E","f":"F","g":"G","aPrime":"A′","bPrime":"B′","cPrime":"C′","dPrime":"D′","ePrime":"E′","fPrime":"F′","gPrime":"G′"}</script>
+  <script type="module" src="app.js"></script>
+</body></html>
