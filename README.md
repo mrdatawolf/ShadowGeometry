@@ -175,3 +175,7 @@ The verification script also checks crossed-eye camera ordering, matching
 vertical projections, two rendering passes, and independent eye occlusion
 using renderer mocks. Human stereo fusion and WebGL rendering require checking
 the page in a browser.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
