@@ -1,4 +1,4 @@
-# ShadowGeometry — 2D → 2.5D → 3D Interactive Spec
+# Shadow Geometry — 2D → 2.5D → 3D Interactive Spec
 
 ## Context
 
