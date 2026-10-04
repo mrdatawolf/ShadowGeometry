@@ -19,6 +19,7 @@ shows how the flat hexagon's "laws" are an accident of viewing angle. See
   - [Vertex snapping](#vertex-snapping)
   - [Camera bookmarks](#camera-bookmarks)
   - [Cross-eyed stereo tab](#cross-eyed-stereo-tab)
+  - [The fourth view (4D tab)](#the-fourth-view-4d-tab)
 - [Project structure](#project-structure)
 - [Testing](#testing)
 - [Specification judgment calls](#specification-judgment-calls)
@@ -187,6 +188,32 @@ current stereo angle and spacing. Bookmark recall does not trigger edge
 reveal. Shared bookmarks retain existing localStorage persistence and JSON
 export/import.
 
+### The fourth view (4D tab)
+
+Select **4D** to open a third standalone viewer (independent of 2D/3D and
+Stereo, like the stereo tab) showing a genuine fourth coordinate, not an
+illustration of one. Every point keeps its existing flat-hexagon x/y/z (the
+same values `flatPositions` already gave primed and unprimed partners before
+the fold ever separated them) and gains a `w` of +1 if visible or -1 if
+hidden. At rest this projects to the classic tesseract image: two nested
+hexagons — one per `w` layer — connected corner to corner by the duality
+edges. Synthesis edges and `g`/`gPrime` are rendered here, unlike the 3D tab;
+`g` and `gPrime` start overlapping at the center (same as their 3D home
+shadow) and visibly separate once the fourth dimension starts turning, since
+both now carry opposite, non-cancelling `w`.
+
+Drag to orbit the projected shadow in the ordinary three dimensions, exactly
+like the 3D and stereo tabs. The shape also auto-rotates on its own through
+the fourth dimension (the `z`/`w` plane) by default, which is what produces
+the "turning inside-out" look as the two hexagons swap which one is nearer.
+The **Rotate through the fourth dimension** slider lets you set that angle
+directly; moving it pauses auto-rotation, and the **Auto-rotate** checkbox
+resumes it from the current angle. `icosahedronExtra` edges from the 3D
+icosahedron don't apply to this figure and are omitted; every other edge
+group (`hexRing`, `triangles`, their hidden mirrors, `dualityAxes`,
+`synthesis`) is shown. There's no snapping or saved-bookmark support on this
+tab — it's orbit plus the one hyper-rotation control.
+
 ## Project structure
 
 ```
@@ -195,6 +222,7 @@ app.js                  stage state machine, three.js scene, transitions, camera
 geometry.js             node + edge data model, icosahedron vertex coordinates
 labels.js               label/slice config loading, localStorage merge, export/import
 stereo.js               cross-eyed stereo viewer
+tesseract.js             fourth-dimension (tesseract) viewer
 style.css
 labels.default.json     placeholder display names for the 14 points
 slices.default.json     shipped slice bookmarks
@@ -227,6 +255,9 @@ and actual shadow drawing commands using a mock canvas. It verifies:
 - Unavailable storage handling.
 - Crossed-eyed stereo camera ordering, matching vertical projections, two
   rendering passes, and independent eye occlusion using renderer mocks.
+- The fourth-dimension data model (`vertexW`, `tesseractEdges`) and the
+  rotation/perspective-projection math, including that `g` and `gPrime`
+  coincide at rest and separate once rotated through `w`.
 
 It does not perform a WebGL/browser rendering test — human stereo fusion and
 actual WebGL rendering require checking the page in a browser. The reference

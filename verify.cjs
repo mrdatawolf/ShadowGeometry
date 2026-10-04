@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 async function run() {
-  for (const name of ['geometry.js', 'labels.js', 'app.js', 'stereo.js']) {
+  for (const name of ['geometry.js', 'labels.js', 'app.js', 'stereo.js', 'tesseract.js']) {
     new vm.SourceTextModule(fs.readFileSync(name, 'utf8'));
   }
   const geometry = new vm.SourceTextModule(fs.readFileSync('geometry.js', 'utf8'));
@@ -31,6 +31,10 @@ async function run() {
   assert(extras.every(e => !familiar.has(key([e.from,e.to]))));
   assert.equal(extras.length, g.icosahedronEdges.filter(e => !familiar.has(key(e))).length);
   assert.equal(extras.length,18);
+  for(const node of g.nodes)assert.equal(g.vertexW[node.id],node.layer==='hidden'?-1:1,'The fourth coordinate must mark hidden-layer ids negative');
+  assert.equal(g.tesseractEdges.length,g.edges.length-extras.length,'The tesseract figure must drop only the icosahedron-specific edges');
+  assert(g.tesseractEdges.every(e=>e.group!=='icosahedronExtra'));
+  for(const id of g.outerIds)assert.deepEqual(g.flatPositions[id],g.flatPositions[`${id}Prime`],'Every primed id must share its unprimed x/y/z before the fourth coordinate separates them');
   const beforeSnap=JSON.stringify(g.solidPositions);
   const snapped=g.findVisualSnap([0,0.03,1],90);
   assert(snapped, 'Nearby projected points should attract the camera');
@@ -224,7 +228,23 @@ async function run() {
     const zero=stereo.namespace.getStereoFrames(view,[0,0,0],[0,1,0],0);
     assert.deepEqual(Array.from(zero.screenLeft.position),Array.from(zero.screenRight.position));
   }
-  await app.link(specifier=>specifier==='three'?three:specifier.includes('OrbitControls')?orbit:specifier==='./geometry.js'?model:specifier==='./stereo.js'?stereo:labels);
+  const tesseract=new vm.SourceTextModule(fs.readFileSync('tesseract.js','utf8'),{context});
+  await tesseract.link(specifier=>specifier==='three'?three:specifier.includes('OrbitControls')?orbit:specifier==='./geometry.js'?model:labels);
+  await tesseract.evaluate();
+  const tesseractInstance=Object.create(tesseract.namespace.TesseractViewer.prototype);
+  tesseractInstance.theta=0;
+  const outerAtRest=tesseractInstance.project([1,2,0,1]);
+  assert(Math.abs(outerAtRest.x-1*2.5/1.5)<1e-10&&Math.abs(outerAtRest.y-2*2.5/1.5)<1e-10&&outerAtRest.z===0,'At rest the visible (w=+1) layer must scale outward by the focal ratio, with no z yet');
+  const innerAtRest=tesseractInstance.project([1,2,0,-1]);
+  assert(Math.abs(innerAtRest.x-1*2.5/3.5)<1e-10,'At rest the hidden (w=-1) layer must scale inward by the focal ratio');
+  const gAtRest=tesseractInstance.project([...g.flatPositions.g,g.vertexW.g]);
+  const gPrimeAtRest=tesseractInstance.project([...g.flatPositions.gPrime,g.vertexW.gPrime]);
+  assert.deepEqual([gAtRest.x,gAtRest.y,gAtRest.z],[gPrimeAtRest.x,gPrimeAtRest.y,gPrimeAtRest.z],'g and gPrime must share one shadow position at rest, same as stage 3');
+  tesseractInstance.theta=Math.PI/2;
+  const gTurned=tesseractInstance.project([...g.flatPositions.g,g.vertexW.g]);
+  const gPrimeTurned=tesseractInstance.project([...g.flatPositions.gPrime,g.vertexW.gPrime]);
+  assert(Math.abs(gTurned.z-gPrimeTurned.z)>1,'Turning through the fourth dimension must separate g from gPrime');
+  await app.link(specifier=>specifier==='three'?three:specifier.includes('OrbitControls')?orbit:specifier==='./geometry.js'?model:specifier==='./stereo.js'?stereo:specifier==='./tesseract.js'?tesseract:labels);
   await app.evaluate();const appTest=app.namespace;
   const clockwiseOrder=points=>{
     const center={x:points.reduce((sum,p)=>sum+p.x,0)/points.length,y:points.reduce((sum,p)=>sum+p.y,0)/points.length};
@@ -350,8 +370,9 @@ async function run() {
   assert(appSource.includes('stage+direction>2')&&!appSource.includes("kind:'layer'"),'Stepper must go directly from flat to solid');
   const pageHtml=fs.readFileSync('index.html','utf8');
   assert(pageHtml.includes('id="flat-tab"')&&pageHtml.includes('>3D</button>'));
+  assert(pageHtml.includes('id="tesseract-tab"')&&pageHtml.includes('>4D</button>'));
   assert(!pageHtml.includes('class="stepper"'),'Stage title strip must be removed above the canvas');
-  console.log('PASS: stereo camera ordering, vertical alignment, paired rendering and per-eye occlusion; border feedback, geometry, fold order, shadow triangles, reveal, saved preferences and bookmarks.');
+  console.log('PASS: stereo camera ordering, vertical alignment, paired rendering and per-eye occlusion; border feedback, geometry, fold order, shadow triangles, reveal, saved preferences and bookmarks; fourth-dimension rotation/projection and g/gPrime separation.');
   console.log('Edge counts:', counts);
 }
 run().catch(error => {console.error(error); process.exitCode = 1;});

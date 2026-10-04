@@ -10,7 +10,7 @@ export const nodes = Object.entries(families).flatMap(([id, family]) => [
 export const activeNodes=nodes.filter(node=>node.family!=='synthesis');
 // Stable identity colors: primed counterparts are 180 degrees apart on the
 // hue wheel, with equal saturation/lightness for visibility on black.
-const baseVertexHues={a:210,b:140,c:260,d:10,e:60,f:170};
+const baseVertexHues={a:220,b:50,c:355,d:120,e:25,f:280};
 export const vertexHues=Object.fromEntries(Object.entries(baseVertexHues).flatMap(([id,hue])=>[[id,hue],[`${id}Prime`,(hue+180)%360]]));
 export const vertexColors=Object.fromEntries(Object.entries(vertexHues).map(([id,hue])=>[id,`hsl(${hue}, 72%, 68%)`]));
 export const sums = {d:['a','b'], e:['b','c'], f:['c','a'], g:['a','b','c'], dPrime:['aPrime','bPrime'], ePrime:['bPrime','cPrime'], fPrime:['cPrime','aPrime'], gPrime:['aPrime','bPrime','cPrime']};
@@ -91,6 +91,14 @@ export function findVisualSnap(viewDirection, pixelsPerUnit, capturePixels=18, m
 // of the physical wireframe; duality axes and synthesis remain absent.
 const solidEdgeKeys=new Set(icosahedronEdges.map(([a,b])=>key(a,b)));
 export const stage3Edges=edges.filter(e=>solidEdgeKeys.has(key(e.from,e.to))||/^(hexRing|triangles)(Hidden)?$/.test(e.group));
+
+// Fourth-dimension treatment: flatPositions already gives every primed id the
+// same x/y/z as its unprimed counterpart (stage 1's undifferentiated flat
+// hexagon). That's exactly what a w axis needs - reuse it as-is and let w
+// alone carry visible/hidden apart. icosahedronExtra is a 3D-icosahedron-only
+// artifact and has no meaning on this duoprism-like figure.
+export const vertexW=Object.fromEntries(nodes.map(n=>[n.id,n.layer==='hidden'?-1:1]));
+export const tesseractEdges=edges.filter(e=>e.group!=='icosahedronExtra');
 
 // Depth is measured toward the camera. Occlusion is shared by the 3D labels,
 // meshes, and shadow dots, so rear identities never show through a front node.

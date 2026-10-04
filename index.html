@@ -7,7 +7,7 @@
 </head>
 <body>
   <header class="page-header"><div><p class="eyebrow">A COSMOLOGY IN THREE DIMENSIONS</p><h1>ShadowGeometry</h1></div>
-  <nav class="view-tabs" role="tablist" aria-label="Viewing mode"><button id="flat-tab" role="tab" aria-selected="true" aria-controls="explorer-panel">2D</button><button id="explorer-tab" role="tab" aria-selected="false" aria-controls="explorer-panel" tabindex="-1">3D</button><button id="stereo-tab" role="tab" aria-selected="false" aria-controls="stereo-panel" tabindex="-1">Stereo</button></nav>
+  <nav class="view-tabs" role="tablist" aria-label="Viewing mode"><button id="flat-tab" role="tab" aria-selected="true" aria-controls="explorer-panel">2D</button><button id="explorer-tab" role="tab" aria-selected="false" aria-controls="explorer-panel" tabindex="-1">3D</button><button id="stereo-tab" role="tab" aria-selected="false" aria-controls="stereo-panel" tabindex="-1">Stereo</button><button id="tesseract-tab" role="tab" aria-selected="false" aria-controls="tesseract-panel" tabindex="-1">4D</button></nav>
   </header>
   <main id="explorer-panel" role="tabpanel" aria-labelledby="flat-tab">
     <section id="scene-card" class="scene-card" aria-label="Interactive six forces geometry">
@@ -33,6 +33,14 @@
       <section class="stereo-bookmark-panel" aria-labelledby="stereo-bookmarks-title"><h2 id="stereo-bookmarks-title">Saved perspectives</h2><div class="stereo-bookmark-layout"><form id="stereo-save-angle"><label for="stereo-slice-name">Bookmark this perspective</label><div class="row"><input id="stereo-slice-name" placeholder="Name this angle" maxlength="120" required><button>Save this angle</button></div></form><div class="stereo-bookmark-list"><p id="stereo-bookmarks-empty">No saved perspectives yet. Save an angle here or in 3D.</p><ul id="stereo-bookmarks"></ul></div></div></section>
     </div>
   </section>
-  <script id="default-labels" type="application/json">{"a":"A","b":"B","c":"C","d":"D","e":"E","f":"F","g":"G","aPrime":"A′","bPrime":"B′","cPrime":"C′","dPrime":"D′","ePrime":"E′","fPrime":"F′","gPrime":"G′"}</script>
+  <section id="tesseract-panel" role="tabpanel" aria-labelledby="tesseract-tab" hidden>
+    <div id="tesseract-card" class="scene-card">
+      <div class="stereo-settings"><label class="snap-control"><input id="tesseract-auto-rotate" type="checkbox" checked> Auto-rotate</label><div class="stereo-slider"><label for="tesseract-theta">Rotate through the fourth dimension <output id="tesseract-theta-value" for="tesseract-theta">0°</output><input id="tesseract-theta" type="range" min="0" max="359" step="1" value="0"></label></div></div>
+      <div id="tesseract-viewport"><div id="tesseract-labels"></div><p id="tesseract-message" role="status">Opening the fourth view…</p></div>
+      <footer><span id="tesseract-status">Drag to orbit · the slider turns the shape through w</span><span><i class="primal"></i> Primal <i class="derived"></i> Derived <i class="synthesis"></i> Synthesis</span></footer>
+    </div>
+    <section class="panel"><p class="eyebrow">BEYOND THE SHADOW</p><p>Fourteen points now carry a fourth coordinate, not just three. Only the relationships — the math — see all four dimensions directly; your eyes, the camera, and this screen only ever get this figure's three-dimensional shadow. Drag to orbit it like any other solid, or turn the slider to rotate the shape through the direction none of us can point to. Watch the center: <span id="tesseract-g-note">g and g′</span>, the pair the flat hexagon never had room for, separate the moment the fourth dimension starts turning.</p></section>
+  </section>
+  <script id="default-labels" type="application/json">{"a":"Flux","b":"Quantum","c":"Phy","d":"Aether","e":"Trimbium","f":"Shadow","g":"G","aPrime":"Flux'","bPrime":"Quantum'","cPrime":"Phy'","dPrime":"Aether'","ePrime":"Trimbium'","fPrime":"Shadow'","gPrime":"G′"}</script>
   <script type="module" src="app.js"></script>
 </body></html>

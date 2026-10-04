@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {StereoViewer} from './stereo.js';
+import {TesseractViewer} from './tesseract.js';
 import {activeNodes,vertexColors,edges,flatPositions,solidPositions,solidHomeDirection,sums,findVisualSnap,getShadowDiagram,getShadowAlignment,getOccludedVertexIds} from './geometry.js';
 import {loadConfig,getLabel,getSlices,getPreferences,setPreferences,subscribe,renameLabel,saveSlice,renameSlice,deleteSlice,exportConfig,importConfig,persistenceMessage} from './labels.js';
 
@@ -19,7 +20,7 @@ let snapPending=false,settledFrames=0;
 const lastView=new THREE.Vector3();
 const orbitStartView=new THREE.Vector3();
 let scene,camera,renderer,controls;
-let activeView='flat',requestedStage=1,stereoViewer;
+let activeView='flat',requestedStage=1,stereoViewer,tesseractViewer;
 const objects=new Map(), lines=new Map();
 const viewport=$('viewport');
 const vector=a=>new THREE.Vector3(...a);
@@ -273,19 +274,21 @@ function refresh(){
   $('stereo-spacing-value').value=`${preferences.stereoSpacingEm} em`;
   for(const [id,obj] of objects)obj.label.textContent=getLabel(id);
   for(const input of $('label-editor').querySelectorAll('input'))if(input!==document.activeElement)input.value=getLabel(input.dataset.id);
+  $('tesseract-g-note').textContent=`${getLabel('g')} and ${getLabel('gPrime')}`;
   panel();bookmarks();$('status').textContent=persistenceMessage;
 }
 async function main(){
   await loadConfig();setup();editor();subscribe(refresh);refresh();
   const selectView=name=>{
     activeView=name;
-    $('explorer-panel').hidden=name==='stereo';$('stereo-panel').hidden=name!=='stereo';
+    $('explorer-panel').hidden=name==='stereo'||name==='tesseract';
+    $('stereo-panel').hidden=name!=='stereo';$('tesseract-panel').hidden=name!=='tesseract';
     $('explorer-panel').setAttribute('aria-labelledby',`${name==='flat'?'flat':'explorer'}-tab`);
-    for(const mode of ['flat','explorer','stereo']){
+    for(const mode of modes){
       $(`${mode}-tab`).setAttribute('aria-selected',String(mode===name));
       $(`${mode}-tab`).tabIndex=mode===name?0:-1;
     }
-    if(name!=='stereo'){
+    if(name!=='stereo'&&name!=='tesseract'){
       requestedStage=name==='flat'?1:2;
       if(!transition&&stage!==requestedStage)changeStage(requestedStage-stage);
     }
@@ -296,14 +299,29 @@ async function main(){
         stereoViewer??=new StereoViewer($('stereo-viewport'),$('stereo-card'),$('stereo-status'));
         stereoViewer.setActive(true);$('stereo-message').hidden=true;
       }catch(error){$('stereo-message').textContent=`Stereo view could not start: ${error.message}`;}
-    }else{stereoViewer?.setActive(false);resize();}
+      tesseractViewer?.setActive(false);
+    }else if(name==='tesseract'){
+      try{
+        tesseractViewer??=createTesseractViewer();
+        tesseractViewer.setActive(true);$('tesseract-message').hidden=true;
+      }catch(error){$('tesseract-message').textContent=`Fourth view could not start: ${error.message}`;}
+      stereoViewer?.setActive(false);
+    }else{stereoViewer?.setActive(false);tesseractViewer?.setActive(false);resize();}
   };
-  const modes=['flat','explorer','stereo'];
+  const createTesseractViewer=()=>{
+    const viewer=new TesseractViewer($('tesseract-viewport'),$('tesseract-card'),$('tesseract-status'));
+    viewer.onThetaChange=theta=>{
+      const degrees=Math.round(theta*180/Math.PI)%360;
+      $('tesseract-theta').value=degrees;$('tesseract-theta-value').value=`${degrees}°`;
+    };
+    return viewer;
+  };
+  const modes=['flat','explorer','stereo','tesseract'];
   for(const mode of modes){
     $(`${mode}-tab`).onclick=()=>selectView(mode);
     $(`${mode}-tab`).onkeydown=event=>{
       if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
-      event.preventDefault();const next=event.key==='Home'?'flat':event.key==='End'?'stereo':modes[(modes.indexOf(mode)+(event.key==='ArrowLeft'?2:1))%3];
+      event.preventDefault();const next=event.key==='Home'?modes[0]:event.key==='End'?modes[modes.length-1]:modes[(modes.indexOf(mode)+(event.key==='ArrowLeft'?modes.length-1:1))%modes.length];
       selectView(next);$(`${next}-tab`).focus();
     };
   }
@@ -318,12 +336,18 @@ async function main(){
   $('stereo-spacing').oninput=()=>setPreferences({stereoSpacingEm:Number($('stereo-spacing').value)});
   $('stereo-spacing-default').onclick=()=>setPreferences({stereoSpacingEm:29});
   $('stereo-labels').onchange=()=>setPreferences({stereoLabelsEnabled:$('stereo-labels').checked});
+  $('tesseract-theta').oninput=()=>{
+    const degrees=Number($('tesseract-theta').value);
+    tesseractViewer?.setTheta(degrees*Math.PI/180);
+    $('tesseract-auto-rotate').checked=false;$('tesseract-theta-value').value=`${degrees}°`;
+  };
+  $('tesseract-auto-rotate').onchange=()=>tesseractViewer?.setAutoRotate($('tesseract-auto-rotate').checked);
   $('save-angle').onsubmit=event=>{event.preventDefault();if(transition)return;try{saveSlice($('slice-name').value,{position:camera.position.toArray(),target:controls.target.toArray()});$('slice-name').value='';}catch(e){$('status').textContent=e.message;}};
   $('export').onclick=exportConfig;$('import').onclick=()=>$('import-file').click();
   $('snap-vertices').onchange=()=>{snapPending=false;setPreferences({snapEnabled:$('snap-vertices').checked});$('snap-status').textContent=$('snap-vertices').checked?'Release a drag near an overlap to snap the view.':'Vertex snapping is off.';};
   $('snap-distance').oninput=()=>setPreferences({snapDistancePixels:Number($('snap-distance').value)});
   $('snap-distance-default').onclick=()=>{snapPending=false;setPreferences({snapDistancePixels:18});};
   $('import-file').onchange=async event=>{const file=event.target.files[0];if(file)try{await importConfig(file);}catch(e){$('status').textContent=`Import failed: ${e.message}`;}event.target.value='';};
-  let last=performance.now();renderer.setAnimationLoop(now=>{const dt=Math.min(now-last,60);last=now;if(activeView==='stereo')return;if(!transition&&stage!==requestedStage)changeStage(requestedStage-stage);tickMotion(dt);snapView();camera.updateMatrixWorld();updateGeometry();if(stage===2)shadow();renderer.render(scene,camera);});
+  let last=performance.now();renderer.setAnimationLoop(now=>{const dt=Math.min(now-last,60);last=now;if(activeView==='stereo'||activeView==='tesseract')return;if(!transition&&stage!==requestedStage)changeStage(requestedStage-stage);tickMotion(dt);snapView();camera.updateMatrixWorld();updateGeometry();if(stage===2)shadow();renderer.render(scene,camera);});
 }
 main().catch(error=>{$('boot-message').hidden=false;$('boot-message').textContent=`Visualization could not start: ${error.message}. Serve this directory over HTTP and check access to the three.js CDN.`;console.error(error);});
