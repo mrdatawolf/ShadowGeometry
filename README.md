@@ -3,7 +3,7 @@
 [![Verify](https://github.com/mrdatawolf/Shadow Geometry/actions/workflows/verify.yml/badge.svg)](https://github.com/mrdatawolf/Shadow Geometry/actions/workflows/verify.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[Live Demo] (https://mrdatawolf.github.io/Shadow Geometry/)
+[Live Demo] (https://mrdatawolf.github.io/ShadowGeometry/)
 
 An interactive page exploring a hexagonal "six forces" cosmology as it unfolds
 from a flat hexagon into a 3D icosahedron, plus a shadow/slicing tool that
