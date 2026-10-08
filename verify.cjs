@@ -313,7 +313,7 @@ async function run() {
   appTest.setShadowViewCheck(g.solidPositions.a);appTest.drawHomeCheck();
   assert.equal(canvas.style.backgroundColor,'#000000','Ten-corner background must also stay black');
   assert.equal(dom['scene-card'].dataset.alignment,'ten','Ten-corner feedback must select the yellow border');
-  assert.equal(canvasContext.dots.length,11,'Non-hexagon shadows retain their visible interior vertices');
+  assert.equal(canvasContext.dots.length,10,'Ten-corner silhouette hides center points');
   assert.equal(canvasContext.strokes.length,1,'Ten-corner shadows must show only the outer ring');
   assert.equal(canvasContext.strokes[0].length,11);
   const synthesisProjection=model.namespace.solidPositions.g.map((v,i)=>v-model.namespace.solidPositions.gPrime[i]);

@@ -240,7 +240,7 @@ function shadow(){
   // Six corners support exactly two alternating triangles; other shapes do not.
   drawPolygon(shape.ring,'#91a0b5');
   if(shape.triangles.length){drawPolygon(shape.triangles[0],colors.primal);drawPolygon(shape.triangles[1],colors.derived,true);}
-  const hexagonCorners=shape.corners===6?new Set(shape.ring.map(p=>p.id)):null;
+  const hexagonCorners=(shape.corners===6||alignment.kind==='ten')?new Set(shape.ring.map(p=>p.id)):null;
   ctx.setLineDash([]);ctx.font='12px system-ui';ctx.textAlign='center';
   for(const [id,obj] of objects){if(obj.alpha<0.001||obj.occluded||!points.has(id)||(hexagonCorners&&!hexagonCorners.has(id)))continue;const [x,y]=points.get(id);ctx.globalAlpha=obj.alpha;ctx.fillStyle=vertexColors[id];ctx.beginPath();ctx.arc(x,y,3.7,0,Math.PI*2);ctx.fill();ctx.fillText(getLabel(id),x,y-10,Math.max(70,w/3));}
   ctx.globalAlpha=1;
