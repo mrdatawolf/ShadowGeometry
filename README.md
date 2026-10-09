@@ -62,6 +62,14 @@ the side panel projects the same geometry onto the camera's perpendicular
 plane. Both views show the twelve outer vertices; synthesis points are
 absent.
 
+Although the entry point is a flat hexagon, the underlying coordinates live
+in a higher-dimensional space by design. The goal was to derive both the
+6/12-point system (the hexagon and its icosahedral extension) and the 4/8-point
+system (the cube and its dual-tetrahedra extension) from a single shared
+mathematical foundation — so that both geometries are not two separate
+inventions but two shadows of the same greater universe, distinguished only
+by which projection you choose to look at.
+
 The 3D opening silhouette retains the flat clockwise order a–d–b–e–c–f, with
 `a` at the top. `aPrime` is directly behind `a`; `ePrime` is directly behind
 `e`. The other four primed corners occupy the two interior projected

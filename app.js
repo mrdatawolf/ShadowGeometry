@@ -139,7 +139,7 @@ function panel(){
   $('panel-caption').textContent=['THE FIRST VIEW','A CHANGE OF PERSPECTIVE'][stage-1];
   $('stage-text').replaceChildren();$('stage-text').hidden=stage===2;$('shadow-tool').hidden=stage!==2;
   const add=(tag,text)=>{const el=document.createElement(tag);el.textContent=text;$('stage-text').append(el);};
-  if(stage===1){add('h2','Six points, three origins');add('p',`${['a','b','c'].map(getLabel).join(', ')} are primal.`);for(const id of ['d','e','f'])add('p',`${getLabel(id)} = ${sums[id].map(getLabel).join(' + ')}`);}
+  if(stage===1){add('h2','Six points, three origins');add('p',`${['a','b','c'].map(getLabel).join(', ')} are primal.`);for(const id of ['d','e','f'])add('p',`${getLabel(id)} = ${sums[id].map(getLabel).join(' + ')}`);add('p','Although this looks flat, each visible point has a hidden counterpart on a perpendicular axis — making the true geometry three-dimensional. That extra dimension is not decorative: it is what allows this six/twelve-point system and the four/eight-point cube system to be derived from the same higher-dimensional structure, two shadows of a single greater universe.');}
   $('interaction-hint').textContent=stage===2?'Drag to orbit · nearer vertices hide those behind':'The visible plane';
   $('save-angle').querySelector('button').disabled=!!transition;
   for(const button of $('bookmarks').querySelectorAll('.visit'))button.disabled=!!transition;
@@ -153,6 +153,7 @@ function mvPanel(){
     add('h2','Four elements, two layers');
     add('p',`${['d','b','c','f'].map(getLabel).join(', ')} meet at the corners of a square.`);
     add('p','Each has a prime counterpart in the hidden layer.');
+    add('p','The hidden layer requires a dimension beyond the flat plane — the same extra axis that lifts the six/twelve-point hexagonal geometry out of flatness. Both systems need this higher dimension to have full symmetry, and that shared requirement is what makes them two aspects of one greater universe rather than two unrelated shapes.');
   }
 }
 function changeStage(direction){
