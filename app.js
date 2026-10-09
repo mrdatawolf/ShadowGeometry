@@ -605,6 +605,6 @@ async function main(){
   $('snap-distance-default').onclick=()=>{snapPending=false;setPreferences({snapDistancePixels:18});};
   $('import-file').onchange=async event=>{const file=event.target.files[0];if(file)try{await importConfig(file);}catch(e){$('status').textContent=`Import failed: ${e.message}`;}event.target.value='';};
   let last=performance.now();renderer.setAnimationLoop(now=>{const dt=Math.min(now-last,60);last=now;if(activeWorld!=='greater'||activeView==='stereo'||activeView==='tesseract')return;if(!transition&&stage!==requestedStage)changeStage(requestedStage-stage);tickMotion(dt);snapView();camera.updateMatrixWorld();updateGeometry();if(stage===2)shadow();renderer.render(scene,camera);});
-  selectMvView('mv-flat');
+  selectWorld('multiverse');
 }
 main().catch(error=>{$('boot-message').hidden=false;$('boot-message').textContent=`Visualization could not start: ${error.message}. Serve this directory over HTTP and check access to the three.js CDN.`;console.error(error);});
