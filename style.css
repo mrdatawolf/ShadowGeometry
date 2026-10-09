@@ -17,7 +17,11 @@ main#explorer-panel{grid-template-columns:minmax(0,1fr) minmax(420px,38%)}@media
 :root{--mv-accent:#e8a835}
 .nav-stack{display:flex;flex-direction:column;gap:4px;align-items:flex-end;margin:0 0 0 auto;flex-shrink:0}
 .page-header .view-tabs{margin:0;flex-shrink:unset}
-#greater-world[aria-selected="true"]{background:#354866;border-color:#78aaff}
+.world-toggle{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;flex-shrink:0}
+.world-toggle-btn{border:none;border-radius:0;background:transparent;color:var(--muted);padding:7px 12px;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.world-toggle-btn+.world-toggle-btn{border-left:1px solid var(--border)}
+#greater-world-btn[aria-pressed="true"]{background:#354866;color:#78aaff}
+#multiverse-world-btn[aria-pressed="true"]{background:#3a2e12;color:var(--mv-accent)}
 #multiverse-view-tabs [aria-selected="true"]{background:#3a2e12;border-color:var(--mv-accent)}
 /* Multiverse panel layout mirrors the Greater explorer panel */
 section#mv-explorer-panel,section#mv-stereo-panel,section#mv-tesseract-panel{max-width:none}

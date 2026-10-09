@@ -1,6 +1,6 @@
 # Shadow Geometry
 
-[![Verify](https://github.com/mrdatawolf/Shadow Geometry/actions/workflows/verify.yml/badge.svg)](https://github.com/mrdatawolf/Shadow Geometry/actions/workflows/verify.yml)
+[![Verify](https://github.com/mrdatawolf/ShadowGeometry/actions/workflows/verify.yml/badge.svg)](https://github.com/mrdatawolf/ShadowGeometry/actions/workflows/verify.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [Live Demo] (https://mrdatawolf.github.io/ShadowGeometry/)

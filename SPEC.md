@@ -1,210 +1,149 @@
-# Shadow Geometry — 2D → 2.5D → 3D Interactive Spec
+# Shadow Geometry — Interactive Spec
 
-## Context
+## Mathematical foundation
 
-`rundown.txt` in this folder is a chat log where a hexagonal "six forces"
-cosmology was developed: six nodes arranged on a hexagon, three primal
-(A, B, C) and three derived as pairwise sums (D = A+B, E = B+C, F = C+A).
-The chat then explored a "2.5D" extension where every visible node secretly
-hides a counterpart node on an axis perpendicular to the plane (A/A', etc.),
-and hinted at a seventh pair — G = A+B+C and its hidden counterpart G' — for
-which the flat plane had no room at all.
+Every vertex in this project lives in **4D space** and is projected down into
+3D (and ultimately 2D screen pixels) via a perspective divide on the fourth
+coordinate w.
 
-`6f_2d.svg` and `6f_2.5d.svg` are the flat renderings of those two stages.
-
-This spec extends that work into an interactive page with three stages:
-flat hexagon → 2.5D hidden-layer → full 3D icosahedron, plus a slicing/shadow
-tool in stage 3 that shows the 2D "laws" are an accident of viewing angle.
-A true 4D (tesseract-style) stage is intentionally **out of scope** for this
-pass — don't build toward it, but don't design the data model in a way that
-would make adding it later painful either.
-
-## Tech stack / file layout
-
-Static, no-build-step page. three.js loaded from a CDN (e.g.
-`unpkg.com/three@<version>/build/three.module.js` + `OrbitControls` from the
-same CDN's examples path). Everything lives in this folder so the source
-material and the interactive version stay together:
-
+**Golden ratio:**
 ```
-Samples/Chris_FASERIP/
-  index.html              page shell: canvas, stepper controls, side panel, label/slice editor
-  app.js                  stage state machine, three.js scene, transitions, camera
-  geometry.js             node + edge data model, icosahedron vertex coordinates
-  labels.js               label/slice config loading, localStorage merge, export/import
-  style.css
-  labels.default.json     placeholder display names for the 14 points
-  slices.default.json     shipped slice bookmarks (can start as an empty array)
-  6f_2d.svg                (existing, reference only, do not modify)
-  6f_2.5d.svg              (existing, reference only, do not modify)
-  rundown.txt              (existing, reference only, do not modify)
+φ = (1 + √5) / 2  ≈ 1.618
 ```
 
-Use ES modules directly in the browser (`<script type="module">`), no bundler,
-no package.json — it must be runnable by double-clicking/serving `index.html`
-with nothing else installed.
+**4D → 3D projection** (implemented in `tesseract.js`):
+```
+w′ = z·sin θ + w·cos θ       rotate the 4th axis into view
+z′ = z·cos θ − w·sin θ
+scale = focal / (focal − w′)  perspective divide on w
+output = (x·scale, y·scale, z′·scale)
+```
+`focal = 2.5`. The slider on the 4D tab controls θ.
 
-## Data model (`geometry.js`)
+The visible and hidden layers are separated along the w-axis — they are not
+simply two copies offset in 3D; the offset lives in the dimension the 3D
+camera cannot point to directly:
 
-14 points, referenced everywhere by stable internal **id**, never by display
-label (labels are data, loaded separately — see "Labels" below):
+| System    | Visible layer w | Hidden layer w |
+|-----------|-----------------|----------------|
+| Greater   | +1/φ            | −1/φ           |
+| Multiverse| +1              | −1             |
 
-| id      | family     | layer   | pair id |
-|---------|------------|---------|---------|
-| a       | primal     | visible | aPrime  |
-| b       | primal     | visible | bPrime  |
-| c       | primal     | visible | cPrime  |
-| d       | derived    | visible | dPrime  |
-| e       | derived    | visible | ePrime  |
-| f       | derived    | visible | fPrime  |
-| g       | synthesis  | visible | gPrime  |
-| aPrime  | primal     | hidden  | a       |
-| bPrime  | primal     | hidden  | b       |
-| cPrime  | primal     | hidden  | c       |
-| dPrime  | derived    | hidden  | d       |
-| ePrime  | derived    | hidden  | e       |
-| fPrime  | derived    | hidden  | f       |
-| gPrime  | synthesis  | hidden  | g       |
+The 3D views (3D tab, Stereo tab) hold θ fixed; the 4D tab lets the user
+rotate θ and watch the visible/hidden layers interchange.
 
-`d = a+b`, `e = b+c`, `f = c+a`, `g = a+b+c` (and the primed mirror of each).
+## World toggle (header)
 
-### Edge groups
+A segmented two-button toggle in the page header switches between the two
+geometry systems:
 
-Tag every edge with a group so stages/transitions can turn groups on and off:
+- **Greater · 6-point** — icosahedron / hexagonal system (14 nodes)
+- **Multiverse · 4-point** — cube / dual-tetrahedra system (8 nodes)
+
+The active button is highlighted (blue tint for Greater, amber for
+Multiverse). Switching worlds swaps the view-mode tab row to the tabs for
+that world and restores the last-used view within it. Each button carries
+`aria-pressed` for accessibility.
+
+## Data models (`geometry.js`)
+
+### Greater — 14 nodes
+
+| id      | family    | layer   | pair id |
+|---------|-----------|---------|---------|
+| a       | primal    | visible | aPrime  |
+| b       | primal    | visible | bPrime  |
+| c       | primal    | visible | cPrime  |
+| d       | derived   | visible | dPrime  |
+| e       | derived   | visible | ePrime  |
+| f       | derived   | visible | fPrime  |
+| g       | synthesis | visible | gPrime  |
+| aPrime  | primal    | hidden  | a       |
+| bPrime  | primal    | hidden  | b       |
+| cPrime  | primal    | hidden  | c       |
+| dPrime  | derived   | hidden  | d       |
+| ePrime  | derived   | hidden  | e       |
+| fPrime  | derived   | hidden  | f       |
+| gPrime  | synthesis | hidden  | g       |
+
+Relationships: `d = a+b`, `e = b+c`, `f = c+a`, `g = a+b+c` (primes mirror each).
+
+3D positions: the 12 outer nodes sit at the vertices of a regular icosahedron
+using golden-ratio coordinates (e.g. `[0, 1, φ]`, `[1, φ, 0]`, `[φ, 0, 1]`
+and their sign variants). g/g′ sit near the centroid, offset slightly along
+the main axis. The 4D w-values place visible nodes at `w = +1/φ` and hidden
+nodes at `w = −1/φ`.
+
+#### Edge groups (Greater)
 
 - `hexRing` (6): a-d, d-b, b-e, e-c, c-f, f-a
 - `triangles` (6): a-b, b-c, c-a, d-e, e-f, f-d
-- `hexRingHidden` / `trianglesHidden` (12): same two groups, primed ids
+- `hexRingHidden` / `trianglesHidden` (12): same groups, primed ids
 - `dualityAxes` (7): a-aPrime, b-bPrime, c-cPrime, d-dPrime, e-ePrime,
   f-fPrime, g-gPrime
 - `synthesis` (6): g-a, g-b, g-c, gPrime-aPrime, gPrime-bPrime, gPrime-cPrime
-- `icosahedronExtra` (remainder): place a, b, c, d, e, f, aPrime..fPrime at
-  the 12 vertices of a regular icosahedron such that each visible/hidden pair
-  (a/aPrime, etc.) occupies a true antipodal vertex pair. Enumerate the
-  icosahedron's actual 30 edges; every edge not already covered by
-  `hexRing`/`triangles`/their hidden mirrors falls into this group. These are
-  the "new" connections stage 3 reveals that didn't exist in the flat model.
-  Document the chosen vertex-to-id assignment in a code comment since it's a
-  judgment call — just keep it consistent (antipodal = visible/hidden dual).
+- `icosahedronExtra`: all remaining icosahedron edges not covered above
 
-## Stages
+### Multiverse — 8 nodes
 
-**Stage 1 — Flat hexagon.** Render `a..f` only (no g/g') at the regular-hexagon
-layout from `6f_2.5d.svg` (reuse those coordinates). Edges: `hexRing` +
-`triangles`. Side panel: static text — A, B, C are primal; D = A+B, E = B+C,
-F = C+A.
+Four element pairs forming a cube, with two inscribed tetrahedra (one
+visible, one hidden):
 
-**Stage 2 — 2.5D hidden layer.** Each visible node gets a translucent hidden
-twin on a dashed vertical axis above it (reuse the `6f_2.5d.svg` layout).
-Edges: stage 1's edges + `hexRingHidden` + `trianglesHidden` + `dualityAxes`
-(only the 6 a-aPrime..f-fPrime, not g-gPrime yet). Optionally render a faint,
-unlabeled marker at the center hinting at g/g' (low opacity, not interactive,
-no edges) — a foreshadowing detail, not a functional node yet. Side panel:
-static text — the "Hidden Vertex Within Every Vertex" passage (six forces
-become twelve, not by adding points but because every point secretly
-contained another).
+| id      | layer   | pair id  |
+|---------|---------|----------|
+| b       | visible | bPrime   |
+| c       | visible | cPrime   |
+| d       | visible | dPrime   |
+| f       | visible | fPrime   |
+| bPrime  | hidden  | b        |
+| cPrime  | hidden  | c        |
+| dPrime  | hidden  | d        |
+| fPrime  | hidden  | f        |
 
-**Stage 3 — Icosahedron.** All 14 points at their true 3D positions (12
-icosahedron vertices + g/g' near the centroid, offset from each other along
-the main axis by a small amount — close enough to visually blur into "one
-point" from most angles). Edges: everything from stage 2 plus `synthesis`
-plus `icosahedronExtra`, revealed in two waves after the fold animation
-settles (see Transitions). Side panel becomes **live** — see "Slice/shadow"
-below, replacing the static text panel used in stages 1-2.
+3D positions: cube vertices at `(±1, ±1, ±1)` with even sign-product for
+visible nodes and odd for hidden nodes. The 4D w-values place visible at
+`w = +1` and hidden at `w = −1`.
 
-## Transitions
+## View tabs
 
-**1 → 2:** each of the 6 visible nodes spawns its translucent hidden twin,
-animating it outward along the dashed depth axis (position tween, maybe
-250-400ms, staggered slightly per node so it doesn't read as one flat pop).
+Both worlds expose four tabs: **2D · 3D · Stereo · 4D**.
 
-**2 → 3:** the two flat layers rotate/fold into the icosahedron's true vertex
-positions (position tween on all 12 outer points simultaneously). Once
-settled:
-1. Wave 1 — fade in the edges that map to already-familiar relationships
-   (`hexRing`, `triangles`, their hidden mirrors, `dualityAxes`) at their new
-   3D positions, if not already visible.
-2. Wave 2 — fade in `icosahedronExtra` edges one at a time (small stagger,
-   e.g. 80-150ms apart) — these are new, previously nonexistent connections.
-3. Fade in g and g' at the centroid, then `synthesis` and the g-gPrime
-   duality edge last.
+**2D** — Orthographic flat projection with a live shadow canvas. The shadow
+redraws as the user orbits, showing that the "laws" a 2D observer infers
+depend on viewing angle. A bookmarking system saves named camera angles.
 
-A Prev/Next stepper (buttons, not scroll-jacking) drives stage changes and
-plays the transition in the appropriate direction. Going backward reverses
-the same animation, it does not hard-cut.
+**3D** — OrbitControls three.js scene. Primal/derived/synthesis edges
+colour-coded. The stage stepper (Prev/Next) within the Greater 3D view
+animates through three narrative stages:
+1. Flat hexagon (a–f, hexRing + triangles edges)
+2. Hidden layer revealed (primed twins + dualityAxes)
+3. Full icosahedron (all edges + g/g′)
 
-## Stage 3 slice/shadow tool
+**Stereo** — Cross-eyed stereoscopic pair. Camera separation and image
+spacing are adjustable. Bookmarks are shared with the 3D view.
 
-Stage 3's side panel is a live orthographic projection ("shadow") of all 14
-points onto a plane perpendicular to the current camera view direction,
-redrawn every frame (or on camera-change) as the user orbits. Render it
-either as:
-- a literal ground-plane shadow in the three.js scene (project each point
-  onto a fixed plane beneath the icosahedron using the current view
-  direction, draw dots/lines there in the same colors as the 3D nodes), or
-- a synced flat 2D canvas/SVG panel showing the same projected coordinates.
+**4D** — The shape rotates through the fourth dimension via a θ slider or
+auto-rotate. As θ increases the visible and hidden layers swap, making the
+4D structure legible to a 3D viewer for the first time.
 
-Either is acceptable — pick whichever is less code; the ground-plane shadow
-is the more literal realization of "shadow" but the 2D panel is simpler and
-equally legible. Labels follow the projected dots. The point of this feature
-is purely visual/didactic: rotating the solid changes which vertices
-coincide and which edges cross, demonstrating that the "laws" a 2D observer
-would infer depend on viewing angle, not just on the structure itself.
+## Labels and persistence (`labels.js`)
 
-### Bookmarkable slice angles
+14 (or 8) display names loaded from a shipped JSON default, then merged with
+localStorage overrides. All rendering code calls `getLabel(id)` — never
+hardcodes letter strings. An inline editor lets users rename nodes; exports
+serialize to a timestamped JSON download; imports reload from a previously
+exported file (with confirmation).
 
-- A "Save this angle" control captures the current camera orientation
-  (e.g., azimuth/elevation or quaternion) plus a user-entered name and stores
-  it as a slice bookmark (see Labels/localStorage below).
-- A list of saved bookmarks lets the user click one to animate the camera to
-  that saved orientation (tween, not an instant cut).
-- Bookmarks can be renamed and deleted from the same list.
+## Tech stack
 
-## Labels, slices, and persistence (`labels.js`)
+Static, no-build-step page. Three.js and OrbitControls loaded from CDN.
+Plain ES modules (`<script type="module">`). No bundler, no package.json.
 
-Two config shapes, both shipped as default JSON files and both editable at
-runtime:
-
-```json
-// labels.default.json
-{ "a": "A", "b": "B", "c": "C", "d": "D", "e": "E", "f": "F", "g": "G",
-  "aPrime": "A′", "bPrime": "B′", "cPrime": "C′", "dPrime": "D′",
-  "ePrime": "E′", "fPrime": "F′", "gPrime": "G′" }
 ```
-
-```json
-// slices.default.json
-[]
+index.html     page shell, toggle, tab navs, panel markup
+app.js         world/view state machine, three.js scenes, transitions
+geometry.js    vertex coordinates (4D), edge groups, projection helpers
+tesseract.js   4D viewer — θ rotation, perspective projection to 3D
+stereo.js      stereoscopic camera pair utilities
+style.css
 ```
-(each entry, once saved: `{ "id": "...", "name": "...", "camera": {...}, "createdAt": "..." }`)
-
-**Load order:** fetch the shipped defaults, then read a localStorage key
-(e.g. `sixForces.overrides`) and merge it on top (localStorage values win
-per-key for labels; slice bookmarks from localStorage are appended to the
-shipped list). All rendering/panel code must look up display text through a
-single `getLabel(id)` function — never hardcode letter strings anywhere in
-`geometry.js` or `app.js`.
-
-**Editing UI:** an inline rename control for each of the 14 labels (a simple
-list of text inputs is fine — this doesn't need to be fancy). Writes go to
-localStorage immediately, not the shipped JSON files.
-
-**Export:** a button that serializes the current merged state
-(`{ labels, slices }`) to a timestamped JSON file download
-(`six-forces-export-YYYY-MM-DD.json`). This file is what later gets copied
-back into `labels.default.json` / `slices.default.json` in the repo to
-promote a user's naming session into the shipped defaults.
-
-**Import:** a button (file input) that loads a previously exported JSON file
-and overwrites the current localStorage state (ask for confirmation since
-it replaces in-progress edits).
-
-## Explicit non-goals for this pass
-
-- No 4D/tesseract stage. Don't build it, don't add UI for it, but don't
-  paint the data model into a corner that would make adding a 15th/16th
-  point painful later (it shouldn't be, given the id/group structure above).
-- No backend/server and no automatic write-back from the browser to the repo
-  files — export is a manual download; importing it into the shipped config
-  files is a manual follow-up step, not something this page does itself.
-- No build tooling (webpack/vite/etc.) — plain ES modules + CDN three.js.

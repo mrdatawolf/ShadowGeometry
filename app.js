@@ -541,7 +541,8 @@ async function main(){
   };
   const selectWorld=name=>{
     activeWorld=name;
-    $('greater-world').setAttribute('aria-selected',String(name==='greater'));
+    $('greater-world-btn').setAttribute('aria-pressed',String(name==='greater'));
+    $('multiverse-world-btn').setAttribute('aria-pressed',String(name==='multiverse'));
     $('greater-view-tabs').hidden=name!=='greater';
     $('multiverse-view-tabs').hidden=name==='greater';
     if(name==='greater'){
@@ -554,7 +555,8 @@ async function main(){
       selectMvView(activeMvView);
     }
   };
-  $('greater-world').onclick=()=>selectWorld(activeWorld==='greater'?'multiverse':'greater');
+  $('greater-world-btn').onclick=()=>selectWorld('greater');
+  $('multiverse-world-btn').onclick=()=>selectWorld('multiverse');
   const mvModes=['mv-flat','mv-explorer','mv-stereo','mv-tesseract'];
   for(const mode of mvModes){
     $(`${mode}-tab`).onclick=()=>selectMvView(mode);
