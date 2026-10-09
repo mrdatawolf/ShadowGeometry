@@ -153,7 +153,8 @@ function mvPanel(){
     add('h2','Four elements, two layers');
     add('p',`${['d','b','c','f'].map(getLabel).join(', ')} meet at the corners of a square.`);
     add('p','Each has a prime counterpart in the hidden layer.');
-    add('p','The hidden layer requires a dimension beyond the flat plane — the same extra axis that lifts the six/twelve-point hexagonal geometry out of flatness. Both systems need this higher dimension to have full symmetry, and that shared requirement is what makes them two aspects of one greater universe rather than two unrelated shapes.');
+    add('p','Both the four-point square and the six/twelve-point hexagonal geometry are projections down from 4D. Each vertex carries a fourth coordinate w, and a perspective projection collapses it into the 3D (and ultimately 2D) view you see: scale = focal / (focal − w′), where w′ = z·sin θ + w·cos θ rotates the 4th axis into view.');
+    add('p','The hidden layer sits at w = −1 (or −1/φ for the hexagonal system), while the visible layer sits at w = +1 (or +1/φ). That shared requirement for a 4th dimension — not just depth, but a full extra axis needed for geometric completeness — is what makes these two shapes aspects of one greater universe rather than two unrelated figures.');
   }
 }
 function changeStage(direction){
