@@ -100,6 +100,44 @@ export const stage3Edges=edges.filter(e=>solidEdgeKeys.has(key(e.from,e.to))||/^
 export const vertexW=Object.fromEntries(nodes.map(n=>[n.id,n.layer==='hidden'?-1:1]));
 export const tesseractEdges=edges.filter(e=>e.group!=='icosahedronExtra');
 
+// Multiverse (4/8): Shadow(f), Aether(d), Physic(c), Quantum(b) and their
+// primes form a cube via two dual inscribed tetrahedra. Outer tetrahedron
+// corners have xyz product +1; inner (prime) corners have xyz product -1.
+// a and e (Flux, Trimbium) are Greater-only — no Multiverse positions exist.
+const multiverseIds=['b','c','d','f'];
+export const multiverseNodes=activeNodes.filter(n=>multiverseIds.includes(n.id.replace('Prime','')));
+export const greaterOnlyNodes=activeNodes.filter(n=>['a','e'].includes(n.id.replace('Prime','')));
+export const cubePositions={
+  b:[ 1, 1, 1], c:[ 1,-1,-1], d:[-1, 1,-1], f:[-1,-1, 1],
+  bPrime:[-1,-1,-1], cPrime:[-1, 1, 1], dPrime:[ 1,-1, 1], fPrime:[ 1, 1,-1]
+};
+// Home view looks along the body diagonal toward b=(1,1,1).
+const cubeAxis=cubePositions.b;
+export const cubeHomeDirection=cubeAxis.map(v=>v/Math.hypot(...cubeAxis));
+// Square layout for Multiverse 2D: d/b on the right, f/c on the left,
+// matching the left/right split of the flat hexagon. Primes are coincident
+// with their unprimed counterparts (same convention as flatPositions).
+export const squarePositions={
+  d:[1,1,0], b:[1,-1,0], c:[-1,-1,0], f:[-1,1,0],
+  dPrime:[1,1,0], bPrime:[1,-1,0], cPrime:[-1,-1,0], fPrime:[-1,1,0]
+};
+// Square perimeter clockwise from upper-right: d→b→c→f→d.
+export const squareEdges=[['d','b'],['b','c'],['c','f'],['f','d']];
+// Cube edges: each outer vertex connects to every prime except its own.
+// All 12 edges cross between the two tetrahedra; no same-tetrahedron edges exist.
+export const cubeEdges=multiverseIds.flatMap(id=>
+  multiverseIds.filter(other=>other!==id).map(other=>[id,`${other}Prime`])
+);
+// w-values for the unified 4D foundation. Greater nodes use ±1/φ, placing the
+// icosahedron layers at the golden-ratio separation from the 600-cell structure.
+// Multiverse nodes use ±1, matching the 24-cell integer layer separation.
+export const greaterVertexW=Object.fromEntries(
+  nodes.map(n=>[n.id,n.layer==='hidden'?-1/phi:1/phi])
+);
+export const multiverseVertexW=Object.fromEntries(
+  multiverseNodes.map(n=>[n.id,n.layer==='hidden'?-1:1])
+);
+
 // Depth is measured toward the camera. Occlusion is shared by the 3D labels,
 // meshes, and shadow dots, so rear identities never show through a front node.
 export function getOccludedVertexIds(points,radius=0.095){

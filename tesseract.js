@@ -12,7 +12,8 @@ const FOCAL=2.5;
 const AUTO_SPEED=Math.PI*2/36000;
 
 export class TesseractViewer{
-  constructor(viewport,card,status){
+  constructor(viewport,card,status,options={}){
+    const {positions=flatPositions,wValues=vertexW,edges:edgeSet=tesseractEdges,nodeSet=nodes,labelsContainer=document.getElementById('tesseract-labels')}=options;
     this.viewport=viewport;this.card=card;this.status=status;this.active=false;
     this.theta=0;this.autoRotate=true;
     this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#000000');
@@ -20,21 +21,21 @@ export class TesseractViewer{
     this.camera.position.set(0,2.2,7.5);this.camera.up.set(0,1,0);this.camera.lookAt(0,0,0);
     this.renderer=new THREE.WebGLRenderer({antialias:true});
     this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-    this.renderer.domElement.setAttribute('aria-label',"Three-dimensional shadow of the fourteen points' four-dimensional figure");
+    this.renderer.domElement.setAttribute('aria-label',"Three-dimensional shadow of the points' four-dimensional figure");
     viewport.append(this.renderer.domElement);
     this.controls=new OrbitControls(this.camera,this.renderer.domElement);
     this.controls.enableDamping=true;this.controls.enablePan=false;this.controls.enableZoom=false;this.controls.enabled=false;
     this.points=[];this.lines=[];
     const sphere=new THREE.SphereGeometry(0.095,20,14);
-    for(const node of nodes){
+    for(const node of nodeSet){
       const color=pointColor(node.id);
       const mesh=new THREE.Mesh(sphere,new THREE.MeshBasicMaterial({color,depthWrite:true}));
       this.scene.add(mesh);
       const label=document.createElement('span');label.className='point-label';label.style.color=color;
-      document.getElementById('tesseract-labels').append(label);
-      this.points.push({node,mesh,label,position4:[...flatPositions[node.id],vertexW[node.id]]});
+      labelsContainer.append(label);
+      this.points.push({node,mesh,label,position4:[...positions[node.id],wValues[node.id]]});
     }
-    for(const edge of tesseractEdges){
+    for(const edge of edgeSet){
       const fromFamily=nodes.find(n=>n.id===edge.from).family;
       const dashed=edge.group==='dualityAxes'||edge.group.endsWith('Hidden')||(edge.group==='triangles'&&fromFamily==='derived');
       const color=edge.group==='synthesis'?colors.synthesis:edge.group==='dualityAxes'?'#a1aec3':edge.group.startsWith('hexRing')?'#69778d':colors[fromFamily];

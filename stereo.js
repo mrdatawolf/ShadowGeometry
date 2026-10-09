@@ -26,14 +26,17 @@ export function getStereoFrames(position,target,up,separationDegrees){
 }
 
 export class StereoViewer{
-  constructor(viewport,card,status){
+  constructor(viewport,card,status,options={}){
+    const {nodeSet=activeNodes,positions=solidPositions,homeDir=solidHomeDirection,edgeSet=stage3Edges,leftLabels=document.getElementById('stereo-left-labels'),rightLabels=document.getElementById('stereo-right-labels'),circumradius=Math.hypot(...solidPositions.a)+0.095,enableReveal=true,snapFn=findVisualSnap}=options;
     this.viewport=viewport;this.card=card;this.status=status;this.active=false;
     this.extraTime=0;this.revealing=false;this.dragging=false;this.snapPending=false;this.stableFrames=0;this.tween=null;
+    this.homeDir=homeDir;this.circumradius=circumradius;this.enableReveal=enableReveal;this.snapFn=snapFn;
     this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#000000');
     this.camera=new THREE.OrthographicCamera(-4,4,3,-3,0.01,100);
-    this.camera.position.copy(vector(solidHomeDirection).multiplyScalar(8));
-    const home=vector(solidPositions.a),direction=vector(solidHomeDirection);
-    this.camera.up.copy(home.addScaledVector(direction,-home.dot(direction)).normalize());
+    const homeNorm=vector(homeDir).normalize();
+    const upRef=options.upRef?vector(options.upRef):vector(solidPositions.a);
+    this.camera.position.copy(homeNorm.clone().multiplyScalar(8));
+    this.camera.up.copy(upRef.clone().addScaledVector(homeNorm,-upRef.dot(homeNorm)).normalize());
     this.camera.lookAt(0,0,0);
     this.eyeCameras=[this.camera.clone(),this.camera.clone()];
     this.renderer=new THREE.WebGLRenderer({antialias:true});
@@ -49,19 +52,19 @@ export class StereoViewer{
     this.controls.addEventListener('end',()=>{this.startReveal();this.dragging=false;this.snapPending=true;this.lastDirection=this.camera.position.clone().sub(this.controls.target).normalize();});
     this.points=[];this.lines=[];
     const sphere=new THREE.SphereGeometry(0.095,20,14);
-    for(const node of activeNodes){
+    for(const node of nodeSet){
       const mesh=new THREE.Mesh(sphere,new THREE.MeshBasicMaterial({color:vertexColors[node.id],depthWrite:true}));
-      mesh.position.copy(vector(solidPositions[node.id]));this.scene.add(mesh);
-      const labels=['stereo-left-labels','stereo-right-labels'].map(id=>{const el=document.createElement('span');el.className='point-label';el.style.color=vertexColors[node.id];document.getElementById(id).append(el);return el;});
+      mesh.position.copy(vector(positions[node.id]));this.scene.add(mesh);
+      const labels=[leftLabels,rightLabels].map(container=>{const el=document.createElement('span');el.className='point-label';el.style.color=vertexColors[node.id];container.append(el);return el;});
       this.points.push({node,mesh,labels});
     }
     let extraIndex=0;
-    for(const edge of stage3Edges){
-      const family=activeNodes.find(n=>n.id===edge.from).family;
+    for(const edge of edgeSet){
+      const family=nodeSet.find(n=>n.id===edge.from)?.family??'primal';
       const dashed=edge.group.endsWith('Hidden')||(edge.group==='triangles'&&family==='derived');
       const color=edge.group==='icosahedronExtra'?'#b5d8ce':edge.group.startsWith('hexRing')?'#69778d':colors[family];
       const material=dashed?new THREE.LineDashedMaterial({color,transparent:true,dashSize:0.07,gapSize:0.05,depthWrite:false}):new THREE.LineBasicMaterial({color,transparent:true,depthWrite:false});
-      const geometry=new THREE.BufferGeometry().setFromPoints([vector(solidPositions[edge.from]),vector(solidPositions[edge.to])]);
+      const geometry=new THREE.BufferGeometry().setFromPoints([vector(positions[edge.from]),vector(positions[edge.to])]);
       const line=new THREE.Line(geometry,material);if(dashed)line.computeLineDistances();this.scene.add(line);
       this.lines.push({edge,line,index:edge.group==='icosahedronExtra'?extraIndex++:-1});
     }
@@ -91,13 +94,13 @@ export class StereoViewer{
     for(const camera of [this.camera,...this.eyeCameras]){camera.top=halfHeight;camera.bottom=-halfHeight;camera.left=-halfHeight*aspect;camera.right=halfHeight*aspect;camera.updateProjectionMatrix();}
   }
   startReveal(){
-    if(!this.dragging||this.revealing)return;
+    if(!this.enableReveal||!this.dragging||this.revealing)return;
     const view=this.camera.position.clone().sub(this.controls.target).normalize();
-    if(view.dot(vector(solidHomeDirection))<Math.cos(Math.PI/360)&&view.dot(this.dragStart)<Math.cos(Math.PI/1800))this.revealing=true;
+    if(view.dot(vector(this.homeDir))<Math.cos(Math.PI/360)&&view.dot(this.dragStart)<Math.cos(Math.PI/1800))this.revealing=true;
   }
   reset(){
     this.tween=null;this.controls.enableDamping=false;this.controls.update();
-    this.controls.target.set(0,0,0);this.camera.position.copy(vector(solidHomeDirection).multiplyScalar(8));
+    this.controls.target.set(0,0,0);this.camera.position.copy(vector(this.homeDir).normalize().multiplyScalar(8));
     this.controls.update();this.controls.enableDamping=true;
     this.extraTime=0;this.revealing=false;this.snapPending=false;this.dragging=false;
     this.status.textContent='Drag to orbit · stereo separation adjusts depth';
@@ -110,11 +113,11 @@ export class StereoViewer{
       this.camera.position.copy(this.controls.target).addScaledVector(direction,this.tween.radius);
       if(t===1){this.tween=null;this.controls.enableDamping=true;}return;
     }
-    if(!this.snapPending||!getPreferences().snapEnabled)return;
+    if(!this.snapFn||!this.snapPending||!getPreferences().snapEnabled)return;
     const direction=this.camera.position.clone().sub(this.controls.target).normalize();
     this.stableFrames=direction.distanceToSquared(this.lastDirection)<1e-8?this.stableFrames+1:0;this.lastDirection.copy(direction);
     if(this.stableFrames<5)return;this.snapPending=false;
-    const snap=findVisualSnap(direction.toArray(),this.viewport.clientHeight/(this.eyeCameras[0].top-this.eyeCameras[0].bottom),getPreferences().snapDistancePixels,Math.PI/12);
+    const snap=this.snapFn(direction.toArray(),this.viewport.clientHeight/(this.eyeCameras[0].top-this.eyeCameras[0].bottom),getPreferences().snapDistancePixels,Math.PI/12);
     if(!snap)return;
     this.controls.enableDamping=false;this.controls.update();
     this.tween={time:0,from:this.camera.position.clone().sub(this.controls.target).normalize(),to:vector(snap.direction),radius:this.camera.position.distanceTo(this.controls.target)};
@@ -147,7 +150,7 @@ export class StereoViewer{
       // On narrow screens cap spacing to one half-panel and fit a bounding sphere
       // so neither eye's image is cropped at the middle or the outside edge.
       const spacingPixels=Math.min(getPreferences().stereoSpacingEm*(this.emPixels||16),width/2);
-      const radius=Math.hypot(...solidPositions.a)+0.095;
+      const radius=this.circumradius??Math.hypot(...solidPositions.a)+0.095;
       const halfHeight=Math.max(3,2.35*height/(width/2),radius*height/spacingPixels);
       const halfWorldWidth=halfHeight*eyeWidth/height;
       camera.top=halfHeight;camera.bottom=-halfHeight;

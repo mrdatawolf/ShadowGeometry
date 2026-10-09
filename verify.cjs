@@ -372,7 +372,50 @@ async function run() {
   assert(pageHtml.includes('id="flat-tab"')&&pageHtml.includes('>3D</button>'));
   assert(pageHtml.includes('id="tesseract-tab"')&&pageHtml.includes('>4D</button>'));
   assert(!pageHtml.includes('class="stepper"'),'Stage title strip must be removed above the canvas');
+
+  // Phase 1: Multiverse geometry assertions
+  assert.equal(g.multiverseNodes.length,8,'multiverseNodes must contain b,c,d,f + 4 primes');
+  assert.equal(g.greaterOnlyNodes.length,4,'greaterOnlyNodes must contain a,e + 2 primes');
+  assert(g.multiverseNodes.every(n=>['b','c','d','f'].includes(n.id.replace('Prime',''))),'multiverseNodes must only contain b/c/d/f ids');
+  assert(g.greaterOnlyNodes.every(n=>['a','e'].includes(n.id.replace('Prime',''))),'greaterOnlyNodes must only contain a/e ids');
+  const cubeR=Math.hypot(...g.cubePositions.b);
+  assert(Object.values(g.cubePositions).every(p=>Math.abs(Math.hypot(...p)-cubeR)<1e-10),'All cube vertices must be equidistant from origin');
+  assert(Math.abs(cubeR-Math.sqrt(3))<1e-10,'Cube circumradius must be sqrt(3)');
+  const outerIds4=['b','c','d','f'];
+  assert(outerIds4.every(id=>g.cubePositions[id].reduce((a,v)=>a*v,1)>0),'Outer cube tetrahedron vertices must have xyz product +1');
+  assert(outerIds4.every(id=>g.cubePositions[`${id}Prime`].reduce((a,v)=>a*v,1)<0),'Inner cube tetrahedron vertices must have xyz product -1');
+  assert.equal(g.cubeEdges.length,12,'Cube must have exactly 12 edges');
+  const cubeDegree=new Map(Object.keys(g.cubePositions).map(id=>[id,0]));
+  for(const [a,b] of g.cubeEdges){cubeDegree.set(a,(cubeDegree.get(a)||0)+1);cubeDegree.set(b,(cubeDegree.get(b)||0)+1);}
+  assert([...cubeDegree.values()].every(d=>d===3),'Every cube vertex must have degree 3');
+  for(const [a,b] of g.cubeEdges){
+    const pa=g.cubePositions[a],pb=g.cubePositions[b];
+    assert(Math.abs(Math.hypot(...pa.map((v,i)=>v-pb[i]))-2)<1e-10,'Every cube edge must have length 2');
+  }
+  assert.equal(g.squareEdges.length,4,'Square must have exactly 4 edges');
+  const sqIds=['d','b','c','f'];
+  assert(sqIds.every(id=>g.squarePositions[id]&&g.squarePositions[`${id}Prime`]),'squarePositions must contain all 8 Multiverse node IDs');
+  assert(sqIds.every(id=>g.squarePositions[id].every((v,i)=>v===g.squarePositions[`${id}Prime`][i])),'Square primes must be coincident with unprimed counterparts');
+  const phi_=(1+Math.sqrt(5))/2;
+  assert(g.activeNodes.every(n=>Math.abs(g.greaterVertexW[n.id]-(n.layer==='hidden'?-1/phi_:1/phi_))<1e-12),'greaterVertexW must use ±1/φ for all active nodes');
+  assert(g.multiverseNodes.every(n=>g.multiverseVertexW[n.id]===(n.layer==='hidden'?-1:1)),'multiverseVertexW must use ±1 for Multiverse nodes');
+  assert(Math.abs(Math.hypot(...g.cubeHomeDirection)-1)<1e-10,'cubeHomeDirection must be a unit vector');
+  assert(g.cubeHomeDirection.every((v,i)=>Math.abs(v-g.cubePositions.b[i]/Math.sqrt(3))<1e-10),'cubeHomeDirection must point toward b=(1,1,1)');
+  // Phase 2: Multiverse panel wiring assertions (DOM structure)
+  assert(pageHtml.includes('id="mv-stage-text"'),'mv-stage-text element must exist');
+  assert(pageHtml.includes('id="mv-shadow-tool"'),'mv-shadow-tool element must exist');
+  assert(pageHtml.includes('id="mv-shadow"'),'mv-shadow canvas must exist');
+  assert(pageHtml.includes('id="mv-shadow-shape"'),'mv-shadow-shape status element must exist');
+  assert(pageHtml.includes('id="mv-save-angle"'),'mv-save-angle form must exist');
+  assert(pageHtml.includes('id="mv-slice-name"'),'mv-slice-name input must exist');
+  assert(pageHtml.includes('id="mv-bookmarks"'),'mv-bookmarks list must exist');
+  assert(pageHtml.includes('id="mv-label-editor"'),'mv-label-editor element must exist');
+  assert(pageHtml.includes('id="mv-status"'),'mv-status element must exist');
+  assert(pageHtml.includes('id="mv-stereo-bookmarks"'),'mv-stereo-bookmarks list must exist');
+  assert(pageHtml.includes('id="mv-stereo-bookmarks-empty"'),'mv-stereo-bookmarks-empty element must exist');
   console.log('PASS: stereo camera ordering, vertical alignment, paired rendering and per-eye occlusion; border feedback, geometry, fold order, shadow triangles, reveal, saved preferences and bookmarks; fourth-dimension rotation/projection and g/gPrime separation.');
+  console.log('PASS: Multiverse geometry — cube positions, edges, square, node sets, w-values, home direction.');
+  console.log('PASS: Multiverse panel — stage text, shadow tool, save-angle form, bookmarks, label editor all present.');
   console.log('Edge counts:', counts);
 }
 run().catch(error => {console.error(error); process.exitCode = 1;});

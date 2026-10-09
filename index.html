@@ -7,7 +7,7 @@
 </head>
 <body>
   <header class="page-header"><div><p class="eyebrow">DIMENSIONS OF A COSMOLOGY</p><h1>Shadow Geometry</h1></div>
-  <nav class="view-tabs" role="tablist" aria-label="Viewing mode"><button id="flat-tab" role="tab" aria-selected="true" aria-controls="explorer-panel">2D</button><button id="explorer-tab" role="tab" aria-selected="false" aria-controls="explorer-panel" tabindex="-1">3D</button><button id="stereo-tab" role="tab" aria-selected="false" aria-controls="stereo-panel" tabindex="-1">Stereo</button><button id="tesseract-tab" role="tab" aria-selected="false" aria-controls="tesseract-panel" tabindex="-1">4D</button></nav>
+  <div class="nav-stack"><button id="greater-world">Into</button><nav class="view-tabs" id="greater-view-tabs" role="tablist" aria-label="Greater viewing mode" hidden><button id="flat-tab" role="tab" aria-selected="true" aria-controls="explorer-panel">2D</button><button id="explorer-tab" role="tab" aria-selected="false" aria-controls="explorer-panel" tabindex="-1">3D</button><button id="stereo-tab" role="tab" aria-selected="false" aria-controls="stereo-panel" tabindex="-1">Stereo</button><button id="tesseract-tab" role="tab" aria-selected="false" aria-controls="tesseract-panel" tabindex="-1">4D</button></nav><nav class="view-tabs" id="multiverse-view-tabs" role="tablist" aria-label="Multiverse viewing mode"><button id="mv-flat-tab" role="tab" aria-selected="true" aria-controls="mv-explorer-panel">2D</button><button id="mv-explorer-tab" role="tab" aria-selected="false" aria-controls="mv-explorer-panel" tabindex="-1">3D</button><button id="mv-stereo-tab" role="tab" aria-selected="false" aria-controls="mv-stereo-panel" tabindex="-1">Stereo</button><button id="mv-tesseract-tab" role="tab" aria-selected="false" aria-controls="mv-tesseract-panel" tabindex="-1">4D</button></nav></div>
   </header>
   <main id="explorer-panel" role="tabpanel" aria-labelledby="flat-tab">
     <section id="scene-card" class="scene-card" aria-label="Interactive six forces geometry">
@@ -40,6 +40,38 @@
       <footer><span id="tesseract-status">Drag to orbit · the slider turns the shape through w</span><span><i class="primal"></i> Primal <i class="derived"></i> Derived <i class="synthesis"></i> Synthesis</span></footer>
     </div>
     <section class="panel"><p class="eyebrow">BEYOND THE SHADOW</p><p>Fourteen points now carry a fourth coordinate, not just three. Only the relationships — the math — see all four dimensions directly; your eyes, the camera, and this screen only ever get this figure's three-dimensional shadow. Drag to orbit it like any other solid, or turn the slider to rotate the shape through the direction none of us can point to. Watch the center: <span id="tesseract-g-note">g and g′</span>, the pair the flat hexagon never had room for, separate the moment the fourth dimension starts turning.</p></section>
+  </section>
+  <section id="mv-explorer-panel" role="tabpanel" aria-labelledby="mv-flat-tab" hidden>
+    <section id="mv-scene-card" class="scene-card" aria-label="Interactive four elements geometry">
+      <div id="mv-viewport"><div id="mv-point-labels"></div><p id="mv-boot-message">Loading Multiverse visualization… If this remains visible, serve this directory over HTTP.</p></div>
+      <footer><span id="mv-interaction-hint">The square</span><span><i class="primal"></i> Primal <i class="derived"></i> Derived</span></footer>
+    </section>
+    <aside>
+      <section class="panel"><p class="eyebrow" id="mv-panel-caption">THE MULTIVERSE</p><div id="mv-stage-text"></div>
+        <div id="mv-shadow-tool" hidden>
+          <p id="mv-shadow-shape" role="status" aria-live="polite">Checking silhouette…</p>
+          <canvas id="mv-shadow" aria-label="Live orthographic shadow of the eight Multiverse vertices"></canvas>
+          <form id="mv-save-angle"><label for="mv-slice-name">Bookmark this perspective</label><div class="row"><input id="mv-slice-name" placeholder="Name this angle" maxlength="120" required><button>Save this angle</button></div></form><ul id="mv-bookmarks"></ul>
+        </div>
+      </section>
+      <details class="panel"><summary>Labels &amp; saved perspectives</summary><div id="mv-label-editor"></div><p id="mv-status" role="status" aria-live="polite"></p></details>
+    </aside>
+  </section>
+  <section id="mv-stereo-panel" role="tabpanel" aria-labelledby="mv-stereo-tab" hidden>
+    <div id="mv-stereo-card" class="scene-card">
+      <div class="stereo-settings"><button id="mv-stereo-home">Reset view</button><div class="stereo-slider"><label for="mv-stereo-spacing">Image spacing (center to center) <output id="mv-stereo-spacing-value" for="mv-stereo-spacing">29 em</output><input id="mv-stereo-spacing" type="range" min="8" max="40" step="0.5" value="29"></label><button id="mv-stereo-spacing-default" type="button">Default</button></div><div class="stereo-slider"><label for="mv-stereo-separation">Stereo angle (depth) <output id="mv-stereo-separation-value" for="mv-stereo-separation">4°</output><input id="mv-stereo-separation" type="range" min="0" max="12" step="0.5" value="4"></label><button id="mv-stereo-separation-default" type="button" aria-label="Restore default stereo separation of 4 degrees">Default</button></div><label class="snap-control"><input id="mv-stereo-labels" type="checkbox"> Show labels</label></div>
+      <div id="mv-stereo-viewport"><div class="stereo-overlay"><div class="stereo-eye"><span class="eye-caption">Right-eye view</span><div id="mv-stereo-left-labels" class="stereo-labels"></div><span class="fusion-mark" aria-hidden="true">+</span></div><div class="stereo-eye"><span class="eye-caption">Left-eye view</span><div id="mv-stereo-right-labels" class="stereo-labels"></div><span class="fusion-mark" aria-hidden="true">+</span></div></div><p id="mv-stereo-message" role="status">Opening Multiverse stereo view…</p></div>
+      <footer><span id="mv-stereo-status">Drag to orbit · stereo separation adjusts depth</span><span><i class="primal"></i> Primal <i class="derived"></i> Derived</span></footer>
+      <section class="stereo-bookmark-panel" aria-labelledby="mv-stereo-bookmarks-title"><h2 id="mv-stereo-bookmarks-title">Saved perspectives</h2><div class="stereo-bookmark-layout"><form id="mv-stereo-save-angle"><label for="mv-stereo-slice-name">Bookmark this perspective</label><div class="row"><input id="mv-stereo-slice-name" placeholder="Name this angle" maxlength="120" required><button>Save this angle</button></div></form><div class="stereo-bookmark-list"><p id="mv-stereo-bookmarks-empty">No saved perspectives yet.</p><ul id="mv-stereo-bookmarks"></ul></div></div></section>
+    </div>
+  </section>
+  <section id="mv-tesseract-panel" role="tabpanel" aria-labelledby="mv-tesseract-tab" hidden>
+    <div id="mv-tesseract-card" class="scene-card">
+      <div class="stereo-settings"><label class="snap-control"><input id="mv-tesseract-auto-rotate" type="checkbox" checked> Auto-rotate</label><div class="stereo-slider"><label for="mv-tesseract-theta">Rotate through the fourth dimension <output id="mv-tesseract-theta-value" for="mv-tesseract-theta">0°</output><input id="mv-tesseract-theta" type="range" min="0" max="359" step="1" value="0"></label></div></div>
+      <div id="mv-tesseract-viewport"><div id="mv-tesseract-labels"></div><p id="mv-tesseract-message" role="status">Opening the fourth view…</p></div>
+      <footer><span id="mv-tesseract-status">Drag to orbit · the slider turns the shape through w</span><span><i class="primal"></i> Primal <i class="derived"></i> Derived</span></footer>
+    </div>
+    <section class="panel"><p class="eyebrow">BEYOND THE CUBE</p><p>The eight Multiverse elements — Shadow, Aether, Psychic, Quantum and their prime counterparts — form a cube in three dimensions. Here that cube rotates through a fourth. The two inscribed tetrahedra, one outer and one inner, are the Multiverse's answer to the Greater's two triangles.</p></section>
   </section>
   <script id="default-labels" type="application/json">{"a":"Flux","b":"Quantum","c":"Psychic","d":"Aether","e":"Trimbium","f":"Shadow","g":"G","aPrime":"Flux'","bPrime":"Quantum'","cPrime":"Psychic'","dPrime":"Aether'","ePrime":"Trimbium'","fPrime":"Shadow'","gPrime":"G′"}</script>
   <script type="module" src="app.js"></script>

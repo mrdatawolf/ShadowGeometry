@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {StereoViewer} from './stereo.js';
 import {TesseractViewer} from './tesseract.js';
-import {activeNodes,vertexColors,edges,flatPositions,solidPositions,solidHomeDirection,sums,findVisualSnap,getShadowDiagram,getShadowAlignment,getOccludedVertexIds} from './geometry.js';
+import {activeNodes,vertexColors,edges,flatPositions,solidPositions,solidHomeDirection,sums,findVisualSnap,getShadowDiagram,getShadowAlignment,getOccludedVertexIds,greaterVertexW,multiverseNodes,cubePositions,cubeEdges,multiverseVertexW,squarePositions,squareEdges,cubeHomeDirection} from './geometry.js';
 import {loadConfig,getLabel,getSlices,getPreferences,setPreferences,subscribe,renameLabel,saveSlice,renameSlice,deleteSlice,exportConfig,importConfig,persistenceMessage} from './labels.js';
 
 const $=id=>document.getElementById(id);
@@ -21,6 +21,7 @@ const lastView=new THREE.Vector3();
 const orbitStartView=new THREE.Vector3();
 let scene,camera,renderer,controls;
 let activeView='flat',requestedStage=1,stereoViewer,tesseractViewer;
+let activeWorld='multiverse',activeMvView='mv-flat',mvTesseractViewer,mvStereoViewer;
 const objects=new Map(), lines=new Map();
 const viewport=$('viewport');
 const vector=a=>new THREE.Vector3(...a);
@@ -143,6 +144,17 @@ function panel(){
   $('save-angle').querySelector('button').disabled=!!transition;
   for(const button of $('bookmarks').querySelectorAll('.visit'))button.disabled=!!transition;
 }
+function mvPanel(){
+  const isFlat=activeMvView==='mv-flat';
+  $('mv-stage-text').hidden=!isFlat;$('mv-shadow-tool').hidden=isFlat;
+  if(isFlat){
+    $('mv-stage-text').replaceChildren();
+    const add=(tag,text)=>{const el=document.createElement(tag);el.textContent=text;$('mv-stage-text').append(el);};
+    add('h2','Four elements, two layers');
+    add('p',`${['d','b','c','f'].map(getLabel).join(', ')} meet at the corners of a square.`);
+    add('p','Each has a prime counterpart in the hidden layer.');
+  }
+}
 function changeStage(direction){
   if(transition || stage+direction<1 || stage+direction>2)return;
   const from=stage;stage+=direction;controls.enabled=false;cameraTween=null;snapPending=false;orbitGesture=false;controls.enableDamping=false;controls.update();
@@ -157,6 +169,11 @@ function animateCamera(saved,duration=900){
   // orientation is exact. Direct user input can interrupt any camera tween.
   controls.enableDamping=false;controls.update();
   cameraTween={elapsed:0,duration,fromPosition:camera.position.clone(),fromTarget:controls.target.clone(),toPosition:vector(saved.position),toTarget:vector(saved.target)};
+}
+function animateMvCamera(saved,duration=900){
+  if(!mvControls)return;
+  mvControls.enableDamping=false;mvControls.update();
+  mvCameraTween={elapsed:0,duration,fromPosition:mvCamera.position.clone(),fromTarget:mvControls.target.clone(),toPosition:vector(saved.position),toTarget:vector(saved.target)};
 }
 function snapView(){
   if(!snapPending||stage!==2||transition||cameraTween)return;
@@ -245,21 +262,66 @@ function shadow(){
   for(const [id,obj] of objects){if(obj.alpha<0.001||obj.occluded||!points.has(id)||(hexagonCorners&&!hexagonCorners.has(id)))continue;const [x,y]=points.get(id);ctx.globalAlpha=obj.alpha;ctx.fillStyle=vertexColors[id];ctx.beginPath();ctx.arc(x,y,3.7,0,Math.PI*2);ctx.fill();ctx.fillText(getLabel(id),x,y-10,Math.max(70,w/3));}
   ctx.globalAlpha=1;
 }
+function mvShadow(){
+  const canvas=$('mv-shadow'),w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;
+  const dpr=Math.min(devicePixelRatio,2);if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
+  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  const right=new THREE.Vector3().setFromMatrixColumn(mvCamera.matrixWorld,0),up=new THREE.Vector3().setFromMatrixColumn(mvCamera.matrixWorld,1),view=new THREE.Vector3().setFromMatrixColumn(mvCamera.matrixWorld,2);
+  const scale=Math.min(w,h)/5.4,points=new Map(),projection=[];
+  for(const [id,obj] of mvObjects){
+    const p=obj.mesh.position,x=p.dot(right),y=p.dot(up);
+    projection.push({id,x,y,depth:p.dot(view),alpha:1});
+    points.set(id,[w/2+x*scale,h/2-y*scale]);
+  }
+  const occluded=getOccludedVertexIds(projection);
+  const visible=projection.filter(p=>!occluded.has(p.id));
+  const shape=getShadowDiagram(visible);
+  canvas.style.backgroundColor='#000000';
+  const description=shape.corners===6?'Aligned hexagon · 6 corners':shape.corners===4?'Square · 4 corners':`${shape.corners}-corner silhouette`;
+  if($('mv-shadow-shape').textContent!==description)$('mv-shadow-shape').textContent=description;
+  const drawPolygon=(vertices,color,dashed=false)=>{
+    if(vertices.length<2)return;
+    ctx.globalAlpha=0.8;ctx.strokeStyle=color;ctx.setLineDash(dashed?[5,4]:[]);ctx.beginPath();
+    vertices.forEach((p,i)=>{const x=w/2+p.x*scale,y=h/2-p.y*scale;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+    ctx.closePath();ctx.stroke();
+  };
+  drawPolygon(shape.ring,'#91a0b5');
+  if(shape.triangles.length){drawPolygon(shape.triangles[0],colors.primal);drawPolygon(shape.triangles[1],colors.derived,true);}
+  const cornerIds=shape.ring.length?new Set(shape.ring.map(p=>p.id)):null;
+  ctx.setLineDash([]);ctx.font='12px system-ui';ctx.textAlign='center';
+  for(const [id] of mvObjects){
+    if(!points.has(id)||occluded.has(id))continue;
+    if(cornerIds&&!cornerIds.has(id))continue;
+    const [x,y]=points.get(id);ctx.globalAlpha=1;ctx.fillStyle=vertexColors[id];ctx.beginPath();ctx.arc(x,y,3.7,0,Math.PI*2);ctx.fill();
+    ctx.fillText(getLabel(id),x,y-10,Math.max(70,w/3));
+  }
+  ctx.globalAlpha=1;
+}
 function bookmarks(){
-  for(const mode of ['explorer','stereo']){
-  const list=$(mode==='stereo'?'stereo-bookmarks':'bookmarks');list.replaceChildren();
-  for(const s of getSlices()){
-    const li=document.createElement('li');const visit=document.createElement('button');visit.className='visit';visit.textContent=s.name;visit.title=s.name;visit.disabled=mode==='explorer'&&!!transition;visit.onclick=()=>mode==='stereo'?stereoViewer?.visit(s.camera,s.name):animateCamera(s.camera);
-    const rename=document.createElement('button');rename.textContent='Rename';rename.setAttribute('aria-label',`Rename ${s.name}`);rename.onclick=()=>{const name=prompt('New bookmark name',s.name);if(name?.trim())try{renameSlice(s.id,name);}catch(e){$(mode==='stereo'?'stereo-status':'status').textContent=e.message;}};
-    const remove=document.createElement('button');remove.textContent='×';remove.setAttribute('aria-label',`Delete ${s.name}`);remove.onclick=()=>deleteSlice(s.id);li.append(visit,rename,remove);list.append(li);
+  for(const mode of ['explorer','stereo','mv-explorer','mv-stereo']){
+    const listId=mode==='stereo'?'stereo-bookmarks':mode==='mv-explorer'?'mv-bookmarks':mode==='mv-stereo'?'mv-stereo-bookmarks':'bookmarks';
+    const list=$(listId);list.replaceChildren();
+    for(const s of getSlices()){
+      const li=document.createElement('li');const visit=document.createElement('button');visit.className='visit';visit.textContent=s.name;visit.title=s.name;visit.disabled=mode==='explorer'&&!!transition;
+      visit.onclick=()=>{if(mode==='stereo')stereoViewer?.visit(s.camera,s.name);else if(mode==='mv-stereo')mvStereoViewer?.visit(s.camera,s.name);else if(mode==='mv-explorer')animateMvCamera(s.camera);else animateCamera(s.camera);};
+      const statusId=mode==='stereo'?'stereo-status':mode==='mv-stereo'?'mv-stereo-status':mode==='mv-explorer'?'mv-status':'status';
+      const rename=document.createElement('button');rename.textContent='Rename';rename.setAttribute('aria-label',`Rename ${s.name}`);rename.onclick=()=>{const name=prompt('New bookmark name',s.name);if(name?.trim())try{renameSlice(s.id,name);}catch(e){$(statusId).textContent=e.message;}};
+      const remove=document.createElement('button');remove.textContent='×';remove.setAttribute('aria-label',`Delete ${s.name}`);remove.onclick=()=>deleteSlice(s.id);li.append(visit,rename,remove);list.append(li);
+    }
   }
-  }
-  $('stereo-bookmarks-empty').hidden=getSlices().length>0;
+  const count=getSlices().length;
+  $('stereo-bookmarks-empty').hidden=count>0;
+  $('mv-stereo-bookmarks-empty').hidden=count>0;
 }
 function editor(){
   for(const node of activeNodes){const label=document.createElement('label');label.textContent=node.id;label.style.color=vertexColors[node.id];const input=document.createElement('input');input.value=getLabel(node.id);input.maxLength=120;input.dataset.id=node.id;input.setAttribute('aria-label',`Display name for ${node.id}`);
     input.addEventListener('input',()=>{if(input.value.trim()){renameLabel(node.id,input.value);input.setCustomValidity('');}else input.setCustomValidity('A label cannot be empty.');});
     input.addEventListener('blur',()=>{if(!input.value.trim()){input.value=getLabel(node.id);input.setCustomValidity('');}});label.append(input);$('label-editor').append(label);}
+}
+function mvEditor(){
+  for(const node of multiverseNodes){const label=document.createElement('label');label.textContent=node.id;label.style.color=vertexColors[node.id];const input=document.createElement('input');input.value=getLabel(node.id);input.maxLength=120;input.dataset.id=node.id;input.setAttribute('aria-label',`Display name for ${node.id}`);
+    input.addEventListener('input',()=>{if(input.value.trim()){renameLabel(node.id,input.value);input.setCustomValidity('');}else input.setCustomValidity('A label cannot be empty.');});
+    input.addEventListener('blur',()=>{if(!input.value.trim()){input.value=getLabel(node.id);input.setCustomValidity('');}});label.append(input);$('mv-label-editor').append(label);}
 }
 function refresh(){
   const preferences=getPreferences();
@@ -272,13 +334,105 @@ function refresh(){
   $('stereo-labels').checked=preferences.stereoLabelsEnabled;
   $('stereo-spacing').value=preferences.stereoSpacingEm;
   $('stereo-spacing-value').value=`${preferences.stereoSpacingEm} em`;
+  $('mv-stereo-separation').value=preferences.stereoSeparationDegrees;
+  $('mv-stereo-separation-value').value=`${preferences.stereoSeparationDegrees}°`;
+  $('mv-stereo-labels').checked=preferences.stereoLabelsEnabled;
+  $('mv-stereo-spacing').value=preferences.stereoSpacingEm;
+  $('mv-stereo-spacing-value').value=`${preferences.stereoSpacingEm} em`;
   for(const [id,obj] of objects)obj.label.textContent=getLabel(id);
+  for(const [id,obj] of mvObjects)obj.label.textContent=getLabel(id);
   for(const input of $('label-editor').querySelectorAll('input'))if(input!==document.activeElement)input.value=getLabel(input.dataset.id);
+  for(const input of $('mv-label-editor').querySelectorAll('input'))if(input!==document.activeElement)input.value=getLabel(input.dataset.id);
   $('tesseract-g-note').textContent=`${getLabel('g')} and ${getLabel('gPrime')}`;
-  panel();bookmarks();$('status').textContent=persistenceMessage;
+  panel();mvPanel();bookmarks();$('status').textContent=persistenceMessage;
+}
+let mvScene,mvCamera,mvRenderer,mvControls,mvCameraTween=null;
+const mvObjects=new Map(),mvSquareLines=[],mvCubeLines=[];
+function setupMv(){
+  const vp=$('mv-viewport');
+  mvScene=new THREE.Scene();mvScene.background=new THREE.Color('#171f2b');
+  mvCamera=new THREE.OrthographicCamera(-4,4,3,-3,0.01,100);
+  mvCamera.position.set(0,0,8);mvCamera.lookAt(0,0,0);
+  mvRenderer=new THREE.WebGLRenderer({antialias:true});mvRenderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  vp.append(mvRenderer.domElement);mvRenderer.domElement.setAttribute('aria-label','Three-dimensional four elements cube model');
+  mvControls=new OrbitControls(mvCamera,mvRenderer.domElement);
+  mvControls.target.set(0,0,0);mvControls.enableDamping=true;mvControls.enablePan=false;mvControls.enableZoom=false;mvControls.enabled=false;
+  const sphere=new THREE.SphereGeometry(0.095,20,14);
+  for(const node of multiverseNodes){
+    const color=vertexColors[node.id];
+    const mesh=new THREE.Mesh(sphere,new THREE.MeshBasicMaterial({color,depthWrite:true}));mvScene.add(mesh);
+    const label=document.createElement('span');label.className='point-label';label.style.color=color;label.textContent=getLabel(node.id);$('mv-point-labels').append(label);
+    mvObjects.set(node.id,{mesh,label,node});
+  }
+  for(const [from,to] of squareEdges){
+    const mat=new THREE.LineBasicMaterial({color:colors.primal,transparent:true,opacity:0.65,depthWrite:false});
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
+    const line=new THREE.Line(geo,mat);mvScene.add(line);mvSquareLines.push({line,from,to});
+  }
+  for(const [from,to] of cubeEdges){
+    const family=multiverseNodes.find(n=>n.id===from).family;
+    const mat=new THREE.LineBasicMaterial({color:colors[family],transparent:true,opacity:0.65,depthWrite:false});
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
+    const line=new THREE.Line(geo,mat);mvScene.add(line);mvCubeLines.push({line,from,to});
+  }
+  new ResizeObserver(resizeMv).observe(vp);resizeMv();
+  $('mv-boot-message').hidden=true;
+  subscribe(()=>{for(const [id,obj] of mvObjects)obj.label.textContent=getLabel(id);});
+  let mvLast=performance.now();
+  mvRenderer.setAnimationLoop(now=>{
+    const dt=Math.min(now-mvLast,60);mvLast=now;
+    if(activeWorld!=='multiverse'||(activeMvView!=='mv-flat'&&activeMvView!=='mv-explorer'))return;
+    if(mvCameraTween){
+      mvCameraTween.elapsed+=dt;const t=Math.min(mvCameraTween.elapsed/mvCameraTween.duration,1),e=smooth(t);
+      const from=mvCameraTween.fromPosition.clone().sub(mvCameraTween.fromTarget);
+      const to=mvCameraTween.toPosition.clone().sub(mvCameraTween.toTarget);
+      const rotation=new THREE.Quaternion().setFromUnitVectors(from.clone().normalize(),to.clone().normalize());
+      mvControls.target.copy(mvCameraTween.fromTarget).lerp(mvCameraTween.toTarget,e);
+      mvCamera.position.copy(mvControls.target).addScaledVector(from.clone().normalize().applyQuaternion(new THREE.Quaternion().slerp(rotation,e)),THREE.MathUtils.lerp(from.length(),to.length(),e));
+      mvCamera.lookAt(mvControls.target);
+      if(t===1){mvCameraTween=null;mvControls.enableDamping=true;}
+    }else{mvControls.update();}
+    mvCamera.updateMatrixWorld();updateMvGeometry();
+    if(activeMvView==='mv-explorer')mvShadow();
+    mvRenderer.render(mvScene,mvCamera);
+  });
+}
+function resizeMv(){
+  const vp=$('mv-viewport');const w=vp.clientWidth,h=vp.clientHeight;if(!w||!h)return;
+  mvRenderer.setSize(w,h);const halfH=Math.max(3,2.35*h/w);
+  mvCamera.top=halfH;mvCamera.bottom=-halfH;mvCamera.left=-halfH*w/h;mvCamera.right=halfH*w/h;mvCamera.updateProjectionMatrix();
+}
+function updateMvGeometry(){
+  const isFlat=activeMvView==='mv-flat';
+  const pos=isFlat?squarePositions:cubePositions;
+  const vp=$('mv-viewport');
+  const right=new THREE.Vector3().setFromMatrixColumn(mvCamera.matrixWorld,0);
+  const up=new THREE.Vector3().setFromMatrixColumn(mvCamera.matrixWorld,1);
+  const view=new THREE.Vector3().setFromMatrixColumn(mvCamera.matrixWorld,2);
+  const points=[];
+  for(const [id,obj] of mvObjects){
+    if(!pos[id])continue;obj.mesh.position.set(...pos[id]);
+    points.push({id,x:obj.mesh.position.dot(right),y:obj.mesh.position.dot(up),depth:obj.mesh.position.dot(view),alpha:1});
+  }
+  const occluded=getOccludedVertexIds(points);
+  for(const [id,obj] of mvObjects){
+    if(!pos[id])continue;const occ=occluded.has(id);obj.mesh.visible=!occ;
+    const screen=obj.mesh.position.clone().project(mvCamera);
+    obj.label.hidden=occ||screen.z<-1||screen.z>1;
+    obj.label.style.left=`${(screen.x+1)*vp.clientWidth/2}px`;
+    obj.label.style.top=`${(1-screen.y)*vp.clientHeight/2-19}px`;
+  }
+  for(const {line,from,to} of mvSquareLines){
+    line.visible=isFlat;
+    if(isFlat){const a=line.geometry.attributes.position;a.setXYZ(0,...squarePositions[from]);a.setXYZ(1,...squarePositions[to]);a.needsUpdate=true;line.geometry.computeBoundingSphere();}
+  }
+  for(const {line,from,to} of mvCubeLines){
+    line.visible=!isFlat;
+    if(!isFlat){const a=line.geometry.attributes.position;a.setXYZ(0,...cubePositions[from]);a.setXYZ(1,...cubePositions[to]);a.needsUpdate=true;line.geometry.computeBoundingSphere();}
+  }
 }
 async function main(){
-  await loadConfig();setup();editor();subscribe(refresh);refresh();
+  await loadConfig();setup();editor();mvEditor();subscribe(refresh);refresh();
   const selectView=name=>{
     activeView=name;
     $('explorer-panel').hidden=name==='stereo'||name==='tesseract';
@@ -309,7 +463,8 @@ async function main(){
     }else{stereoViewer?.setActive(false);tesseractViewer?.setActive(false);resize();}
   };
   const createTesseractViewer=()=>{
-    const viewer=new TesseractViewer($('tesseract-viewport'),$('tesseract-card'),$('tesseract-status'));
+    const viewer=new TesseractViewer($('tesseract-viewport'),$('tesseract-card'),$('tesseract-status'),
+      {positions:solidPositions,wValues:greaterVertexW,labelsContainer:$('tesseract-labels')});
     viewer.onThetaChange=theta=>{
       const degrees=Math.round(theta*180/Math.PI)%360;
       $('tesseract-theta').value=degrees;$('tesseract-theta-value').value=`${degrees}°`;
@@ -325,6 +480,107 @@ async function main(){
       selectView(next);$(`${next}-tab`).focus();
     };
   }
+  const createMvTesseractViewer=()=>{
+    const formattedEdges=cubeEdges.map(([from,to])=>({id:`cube:${from}:${to}`,from,to,group:'cube'}));
+    const viewer=new TesseractViewer($('mv-tesseract-viewport'),$('mv-tesseract-card'),$('mv-tesseract-status'),
+      {positions:cubePositions,wValues:multiverseVertexW,edges:formattedEdges,nodeSet:multiverseNodes,labelsContainer:$('mv-tesseract-labels')});
+    viewer.onThetaChange=theta=>{
+      const degrees=Math.round(theta*180/Math.PI)%360;
+      $('mv-tesseract-theta').value=degrees;$('mv-tesseract-theta-value').value=`${degrees}°`;
+    };
+    return viewer;
+  };
+  const createMvStereoViewer=()=>{
+    const formattedEdges=cubeEdges.map(([from,to])=>({id:`cube:${from}:${to}`,from,to,group:'cube'}));
+    const homeNorm=vector(cubeHomeDirection).normalize();
+    const worldY=new THREE.Vector3(0,1,0);
+    const cubeUp=worldY.clone().addScaledVector(homeNorm,-worldY.dot(homeNorm)).normalize().toArray();
+    return new StereoViewer($('mv-stereo-viewport'),$('mv-stereo-card'),$('mv-stereo-status'),
+      {nodeSet:multiverseNodes,positions:cubePositions,homeDir:cubeHomeDirection,edgeSet:formattedEdges,
+       leftLabels:$('mv-stereo-left-labels'),rightLabels:$('mv-stereo-right-labels'),
+       circumradius:Math.sqrt(3)+0.095,enableReveal:false,snapFn:null,upRef:cubeUp});
+  };
+  const selectMvView=name=>{
+    activeMvView=name;mvPanel();
+    const mvModes=['mv-flat','mv-explorer','mv-stereo','mv-tesseract'];
+    $('mv-explorer-panel').hidden=name!=='mv-flat'&&name!=='mv-explorer';
+    $('mv-stereo-panel').hidden=name!=='mv-stereo';
+    $('mv-tesseract-panel').hidden=name!=='mv-tesseract';
+    for(const mode of mvModes){
+      $(`${mode}-tab`).setAttribute('aria-selected',String(mode===name));
+      $(`${mode}-tab`).tabIndex=mode===name?0:-1;
+    }
+    if(name==='mv-flat'||name==='mv-explorer'){
+      if(!mvScene)setupMv();
+      if(name==='mv-flat'){
+        mvCamera.position.set(0,0,8);mvCamera.up.set(0,1,0);mvCamera.lookAt(0,0,0);
+        mvControls.target.set(0,0,0);mvControls.enableDamping=false;mvControls.enabled=false;mvControls.update();
+      }else{
+        mvCamera.position.copy(vector(cubeHomeDirection).multiplyScalar(8));mvCamera.up.set(0,1,0);mvCamera.lookAt(0,0,0);
+        mvControls.target.set(0,0,0);mvControls.enabled=true;
+      }
+      resizeMv();
+      $('mv-interaction-hint').textContent=name==='mv-explorer'?'Drag to orbit · eight elements on a cube':'The square';
+      mvStereoViewer?.setActive(false);mvTesseractViewer?.setActive(false);
+    }else if(name==='mv-stereo'){
+      if(!mvScene)setupMv();
+      try{
+        mvStereoViewer??=createMvStereoViewer();
+        mvStereoViewer.setActive(true);$('mv-stereo-message').hidden=true;
+      }catch(error){$('mv-stereo-message').textContent=`Stereo view could not start: ${error.message}`;}
+      mvTesseractViewer?.setActive(false);
+    }else if(name==='mv-tesseract'){
+      try{
+        mvTesseractViewer??=createMvTesseractViewer();
+        mvTesseractViewer.setActive(true);$('mv-tesseract-message').hidden=true;
+      }catch(error){$('mv-tesseract-message').textContent=`Fourth view could not start: ${error.message}`;}
+      mvStereoViewer?.setActive(false);
+    }else{mvStereoViewer?.setActive(false);mvTesseractViewer?.setActive(false);}
+  };
+  const selectWorld=name=>{
+    activeWorld=name;
+    $('greater-world').setAttribute('aria-selected',String(name==='greater'));
+    $('greater-view-tabs').hidden=name!=='greater';
+    $('multiverse-view-tabs').hidden=name==='greater';
+    if(name==='greater'){
+      $('mv-explorer-panel').hidden=true;$('mv-stereo-panel').hidden=true;$('mv-tesseract-panel').hidden=true;
+      mvTesseractViewer?.setActive(false);mvStereoViewer?.setActive(false);
+      selectView(activeView);
+    }else{
+      $('explorer-panel').hidden=true;$('stereo-panel').hidden=true;$('tesseract-panel').hidden=true;
+      stereoViewer?.setActive(false);tesseractViewer?.setActive(false);
+      selectMvView(activeMvView);
+    }
+  };
+  $('greater-world').onclick=()=>selectWorld(activeWorld==='greater'?'multiverse':'greater');
+  const mvModes=['mv-flat','mv-explorer','mv-stereo','mv-tesseract'];
+  for(const mode of mvModes){
+    $(`${mode}-tab`).onclick=()=>selectMvView(mode);
+    $(`${mode}-tab`).onkeydown=event=>{
+      if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+      event.preventDefault();const idx=mvModes.indexOf(mode);
+      const next=event.key==='Home'?mvModes[0]:event.key==='End'?mvModes[mvModes.length-1]:mvModes[(idx+(event.key==='ArrowLeft'?mvModes.length-1:1))%mvModes.length];
+      selectMvView(next);$(`${next}-tab`).focus();
+    };
+  }
+  $('mv-tesseract-theta').oninput=()=>{
+    const degrees=Number($('mv-tesseract-theta').value);
+    mvTesseractViewer?.setTheta(degrees*Math.PI/180);
+    $('mv-tesseract-auto-rotate').checked=false;$('mv-tesseract-theta-value').value=`${degrees}°`;
+  };
+  $('mv-tesseract-auto-rotate').onchange=()=>mvTesseractViewer?.setAutoRotate($('mv-tesseract-auto-rotate').checked);
+  $('mv-save-angle').onsubmit=event=>{event.preventDefault();if(!mvControls)return;try{saveSlice($('mv-slice-name').value,{position:mvCamera.position.toArray(),target:mvControls.target.toArray()});$('mv-slice-name').value='';}catch(e){$('mv-status').textContent=e.message;}};
+  $('mv-stereo-home').onclick=()=>mvStereoViewer?.reset();
+  $('mv-stereo-save-angle').onsubmit=event=>{
+    event.preventDefault();if(!mvStereoViewer)return;
+    try{saveSlice($('mv-stereo-slice-name').value,mvStereoViewer.getView());$('mv-stereo-slice-name').value='';}
+    catch(error){$('mv-stereo-status').textContent=error.message;}
+  };
+  $('mv-stereo-separation').oninput=()=>setPreferences({stereoSeparationDegrees:Number($('mv-stereo-separation').value)});
+  $('mv-stereo-separation-default').onclick=()=>setPreferences({stereoSeparationDegrees:4});
+  $('mv-stereo-spacing').oninput=()=>setPreferences({stereoSpacingEm:Number($('mv-stereo-spacing').value)});
+  $('mv-stereo-spacing-default').onclick=()=>setPreferences({stereoSpacingEm:29});
+  $('mv-stereo-labels').onchange=()=>setPreferences({stereoLabelsEnabled:$('mv-stereo-labels').checked});
   $('stereo-home').onclick=()=>stereoViewer?.reset();
   $('stereo-save-angle').onsubmit=event=>{
     event.preventDefault();if(!stereoViewer)return;
@@ -348,6 +604,7 @@ async function main(){
   $('snap-distance').oninput=()=>setPreferences({snapDistancePixels:Number($('snap-distance').value)});
   $('snap-distance-default').onclick=()=>{snapPending=false;setPreferences({snapDistancePixels:18});};
   $('import-file').onchange=async event=>{const file=event.target.files[0];if(file)try{await importConfig(file);}catch(e){$('status').textContent=`Import failed: ${e.message}`;}event.target.value='';};
-  let last=performance.now();renderer.setAnimationLoop(now=>{const dt=Math.min(now-last,60);last=now;if(activeView==='stereo'||activeView==='tesseract')return;if(!transition&&stage!==requestedStage)changeStage(requestedStage-stage);tickMotion(dt);snapView();camera.updateMatrixWorld();updateGeometry();if(stage===2)shadow();renderer.render(scene,camera);});
+  let last=performance.now();renderer.setAnimationLoop(now=>{const dt=Math.min(now-last,60);last=now;if(activeWorld!=='greater'||activeView==='stereo'||activeView==='tesseract')return;if(!transition&&stage!==requestedStage)changeStage(requestedStage-stage);tickMotion(dt);snapView();camera.updateMatrixWorld();updateGeometry();if(stage===2)shadow();renderer.render(scene,camera);});
+  selectMvView('mv-flat');
 }
 main().catch(error=>{$('boot-message').hidden=false;$('boot-message').textContent=`Visualization could not start: ${error.message}. Serve this directory over HTTP and check access to the three.js CDN.`;console.error(error);});
