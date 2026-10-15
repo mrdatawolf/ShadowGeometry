@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+cd "$(dirname "$0")"
+
+VERSION=$(tr -d '[:space:]' < VERSION.txt 2>/dev/null)
+echo "Shadow Geometry v${VERSION:-unknown}"
+echo ""
+
 # Locate Python 3
 if command -v python3 &>/dev/null; then
     PYTHON=python3

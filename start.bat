@@ -1,7 +1,10 @@
 @echo off
 setlocal
+cd /d "%~dp0"
 
-echo Shadow Geometry - local dev server
+set VERSION=unknown
+if exist VERSION.txt set /p VERSION=<VERSION.txt
+echo Shadow Geometry v%VERSION% - local dev server
 echo ===================================
 
 REM Locate Python 3

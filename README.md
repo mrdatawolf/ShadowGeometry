@@ -237,6 +237,7 @@ style.css
 labels.default.json     placeholder display names for the 14 points
 slices.default.json     shipped slice bookmarks
 serve.py                static file server with correct ES-module MIME types
+VERSION.txt             current version; shown by start.sh/start.bat and the page footer
 verify.cjs              browser-free verification script
 SPEC.md                 full design spec and background
 ```

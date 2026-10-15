@@ -73,6 +73,8 @@
     </div>
     <section class="panel"><p class="eyebrow">BEYOND THE CUBE</p><p>The eight Multiverse elements — Shadow, Aether, Psychic, Quantum and their prime counterparts — form a cube in three dimensions. Here that cube rotates through a fourth. The two inscribed tetrahedra, one outer and one inner, are the Multiverse's answer to the Greater's two triangles.</p></section>
   </section>
+  <footer class="page-footer">Shadow Geometry <span id="app-version">v—</span></footer>
+  <script>fetch('VERSION.txt',{cache:'no-cache'}).then(r=>r.ok?r.text():Promise.reject()).then(v=>{document.getElementById('app-version').textContent='v'+v.trim();}).catch(()=>{});</script>
   <script id="default-labels" type="application/json">{"a":"Flux","b":"Quantum","c":"Psychic","d":"Aether","e":"Trimbium","f":"Shadow","g":"G","aPrime":"Flux'","bPrime":"Quantum'","cPrime":"Psychic'","dPrime":"Aether'","ePrime":"Trimbium'","fPrime":"Shadow'","gPrime":"G′"}</script>
   <script type="module" src="app.js"></script>
 </body></html>
