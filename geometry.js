@@ -66,6 +66,43 @@ for(let i=0;i<vertices.length;i++) for(let j=i+1;j<vertices.length;j++) {
   }
 }
 
+// Fields (1.1.0): every icosahedron corner is an ordering of (0, ±1, ±φ), so
+// each x/y/z axis is read as a field. A vertex is steeped in the field where
+// it has φ (dominant), feels the field where it has 1 (felt), and cannot sense
+// the field where it has 0 (blind). Each field leads exactly four vertices,
+// the corners of one golden rectangle.
+export const fieldIds=['fieldX','fieldY','fieldZ'];
+export const fieldColors={fieldX:'hsl(185, 70%, 58%)',fieldY:'hsl(42, 85%, 60%)',fieldZ:'hsl(320, 70%, 68%)'};
+export const fieldProfiles=Object.fromEntries(activeNodes.map(({id})=>{
+  const magnitudes=solidPositions[id].map(Math.abs);
+  const field=value=>fieldIds[magnitudes.findIndex(m=>Math.abs(m-value)<1e-9)];
+  return [id,{dominant:field(phi),felt:field(1),blind:field(0),mix:Object.fromEntries(fieldIds.map((f,i)=>[f,magnitudes[i]/(1+phi)]))}];
+}));
+// The felt field always follows the same cycle, so it is a property of the field itself.
+export const feltFieldOf=Object.fromEntries(fieldIds.map(f=>[f,Object.values(fieldProfiles).find(p=>p.dominant===f).felt]));
+export const fieldMembers=Object.fromEntries(fieldIds.map(f=>[f,activeNodes.map(n=>n.id).filter(id=>fieldProfiles[id].dominant===f)]));
+// Branches are the five icosahedron edges at each vertex, grouped by the
+// dominant field of the vertex they reach: 1 kin, 2 felt, 2 blind.
+const neighborsOf=id=>icosahedronEdges.filter(e=>e.includes(id)).map(e=>e[0]===id?e[1]:e[0]);
+export const fieldBranches=Object.fromEntries(activeNodes.map(({id})=>{
+  const profile=fieldProfiles[id],reach=field=>neighborsOf(id).filter(other=>fieldProfiles[other].dominant===field);
+  return [id,{kin:reach(profile.dominant),felt:reach(profile.felt),blind:reach(profile.blind)}];
+}));
+export const masteryTiers=['aligned','adept','master'];
+export const tierBranchKinds={aligned:['kin'],adept:['kin','felt'],master:['kin','felt','blind']};
+// The opposite corner is three branches away and always shares the dominant
+// field. Of its ten shortest routes, exactly four cross both other fields,
+// one leaving along each felt or blind branch.
+export const fieldOpposites=Object.fromEntries(activeNodes.map(({id})=>[id,activeNodes.find(n=>solidPositions[n.id].every((v,k)=>Math.abs(v+solidPositions[id][k])<1e-9)).id]));
+export const oppositeRoutes=Object.fromEntries(activeNodes.map(({id})=>{
+  const target=fieldOpposites[id],own=fieldProfiles[id].dominant,routes=[];
+  for(const step of neighborsOf(id))for(const next of neighborsOf(step)){
+    const crossing=new Set([fieldProfiles[step].dominant,fieldProfiles[next].dominant]);
+    if(next!==id&&neighborsOf(next).includes(target)&&crossing.size===2&&!crossing.has(own))routes.push([id,step,next,target]);
+  }
+  return [id,routes];
+}));
+
 // Pick a near alignment in the viewing plane, without changing any vertices.
 // Both signs of the pair direction represent the same orthographic overlap.
 export function findVisualSnap(viewDirection, pixelsPerUnit, capturePixels=18, maxAngle=Math.PI/36) {

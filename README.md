@@ -22,6 +22,7 @@ shows how the flat hexagon's "laws" are an accident of viewing angle. See
   - [Camera bookmarks](#camera-bookmarks)
   - [Cross-eyed stereo tab](#cross-eyed-stereo-tab)
   - [The fourth view (4D tab)](#the-fourth-view-4d-tab)
+  - [The three fields (Fields tab)](#the-three-fields-fields-tab)
 - [Project structure](#project-structure)
 - [Testing](#testing)
 - [Specification judgment calls](#specification-judgment-calls)
@@ -56,7 +57,8 @@ serving so this doesn't come up.
 ### 2D and 3D views
 
 Use the header's 2D and 3D tabs to move directly between the flat hexagon and
-the 3D solid. The canvas has no separate stage title/navigation strip, and
+the 3D solid. The page remembers the last world and tab in browser storage
+and reopens them on the next load (Multiverse 2D the first time). The canvas has no separate stage title/navigation strip, and
 the 2.5D hidden-layer stage has been removed. In the 3D view, drag to orbit;
 the side panel projects the same geometry onto the camera's perpendicular
 plane. Both views show the twelve outer vertices; synthesis points are
@@ -224,6 +226,25 @@ group (`hexRing`, `triangles`, their hidden mirrors, `dualityAxes`,
 `synthesis`) is shown. There's no snapping or saved-bookmark support on this
 tab — it's orbit plus the one hyper-rotation control.
 
+### The three fields (Fields tab)
+
+The Greater world's **Fields** tab reads each icosahedron vertex as a mix of
+three fields. Every corner is an ordering of 0, 1 and φ: the field at φ is
+the one the vertex is aligned to, the field at 1 is the one it comes to feel,
+and the field at 0 is the one only mastery reveals. Vertices are colored by
+their aligned field, and each field's four vertices form a shaded golden
+rectangle.
+
+Pick a vertex from the list or click it in the view, then step through
+**Aligned → Adept → Master**. The lines are branches: the vertex's kin opens
+first (1 of 5), then the two branches into its felt field (3 of 5), then the
+two into its blind field (5 of 5). At Master the opposite vertex is ringed,
+the four routes to it that cross both other fields are drawn, and **See the
+balanced cube** switches to the Multiverse 3D view, where every corner holds
+all three fields equally. Field names are placeholders; rename them under
+**Field names** (they save, export and import with the other labels). See
+[SPEC.md](SPEC.md#fields-110-greater-only) for the model.
+
 ## Project structure
 
 ```
@@ -233,6 +254,7 @@ geometry.js             node + edge data model, icosahedron vertex coordinates
 labels.js               label/slice config loading, localStorage merge, export/import
 stereo.js               cross-eyed stereo viewer
 tesseract.js             fourth-dimension (tesseract) viewer
+fields.js               three-fields viewer and panel narrative
 style.css
 labels.default.json     placeholder display names for the 14 points
 slices.default.json     shipped slice bookmarks
@@ -269,6 +291,9 @@ and actual shadow drawing commands using a mock canvas. It verifies:
 - The fourth-dimension data model (`vertexW`, `tesseractEdges`) and the
   rotation/perspective-projection math, including that `g` and `gPrime`
   coincide at rest and separate once rotated through `w`.
+- The three-field model: 0 : 1 : φ profiles, the felt-field cycle, 1/2/2
+  branches by mastery tier, routes to the opposite vertex, the panel
+  narrative, and that the Fields home view shows all twelve vertices apart.
 
 It does not perform a WebGL/browser rendering test — human stereo fusion and
 actual WebGL rendering require checking the page in a browser. The reference

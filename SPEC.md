@@ -106,7 +106,8 @@ visible nodes and odd for hidden nodes. The 4D w-values place visible at
 
 ## View tabs
 
-Both worlds expose four tabs: **2D · 3D · Stereo · 4D**.
+Both worlds expose four tabs: **2D · 3D · Stereo · 4D**. The Greater world
+adds a fifth, **Fields** (see below).
 
 **2D** — Orthographic flat projection with a live shadow canvas. The shadow
 redraws as the user orbits, showing that the "laws" a 2D observer infers
@@ -126,6 +127,41 @@ spacing are adjustable. Bookmarks are shared with the 3D view.
 auto-rotate. As θ increases the visible and hidden layers swap, making the
 4D structure legible to a 3D viewer for the first time.
 
+## Fields (1.1.0, Greater only)
+
+A **Fields** tab after 4D in the Greater world reads the icosahedron's
+coordinates as three fields. Every vertex is an ordering of `(0, ±1, ±φ)`, so
+each x/y/z axis is a field (`fieldX`, `fieldY`, `fieldZ`; placeholder names,
+editable in the tab and stored with the other labels):
+
+| Value | Role | Meaning for a character |
+|-------|------|-------------------------|
+| φ | dominant | the field they are aligned to |
+| 1 | felt | the field they begin to sense as adepts |
+| 0 | blind | the field only mastery reveals |
+
+- Each field leads exactly four vertices, the corners of one golden rectangle.
+- The felt field depends only on the dominant one, in a fixed cycle:
+  X → Z → Y → X. The blind field is the axis perpendicular to the vertex's
+  own rectangle.
+- **Lines are branches, not fields.** A vertex's five icosahedron edges split
+  by the dominant field of the neighbour they reach: 1 kin, 2 felt, 2 blind.
+- **Mastery tiers** open branches: Aligned = kin (1), Adept = + felt (3),
+  Master = + blind (5).
+- The **opposite** vertex (antipode) shares the dominant field and is three
+  branches away. Of its ten shortest routes, exactly four cross both other
+  fields, one leaving along each felt or blind branch; the Master tier draws
+  them.
+- The Multiverse cube's corners are `(±1, ±1, ±1)`: all three fields equal
+  (1 : 1 : 1), presented as the balanced form mastery sees.
+- **w** is the same magnitude (±1/φ) on every vertex, so no one is aligned to
+  it and no one feels it. It is reserved for future use.
+
+Data (`geometry.js`): `fieldIds`, `fieldColors`, `fieldProfiles`,
+`feltFieldOf`, `fieldMembers`, `fieldBranches`, `masteryTiers`,
+`tierBranchKinds`, `fieldOpposites`, `oppositeRoutes`. Viewer and panel text:
+`fields.js`.
+
 ## Labels and persistence (`labels.js`)
 
 14 (or 8) display names loaded from a shipped JSON default, then merged with
@@ -144,6 +180,7 @@ index.html     page shell, toggle, tab navs, panel markup
 app.js         world/view state machine, three.js scenes, transitions
 geometry.js    vertex coordinates (4D), edge groups, projection helpers
 tesseract.js   4D viewer — θ rotation, perspective projection to 3D
+fields.js      Fields viewer — field coloring, branches by mastery tier
 stereo.js      stereoscopic camera pair utilities
 style.css
 ```

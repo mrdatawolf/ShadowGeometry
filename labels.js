@@ -1,6 +1,7 @@
-import {nodes} from './geometry.js';
+import {nodes,fieldIds} from './geometry.js';
 const KEY='sixForces.overrides';
-const ids=nodes.map(n=>n.id);
+// Field names share the label store; older exports without them keep defaults.
+const nodeIds=nodes.map(n=>n.id),ids=[...nodeIds,...fieldIds];
 let defaults, shipped=[], overrides={}, slices=[];
 const defaultPreferences={snapEnabled:true,snapDistancePixels:18,stereoSeparationDegrees:4,stereoSpacingEm:29,stereoLabelsEnabled:false};
 let preferences={...defaultPreferences};
@@ -83,7 +84,7 @@ export function exportConfig(){
 export async function importConfig(file){
   const parsed=JSON.parse(await file.text());const labels=validateLabels(parsed.labels), bookmarks=validateSlices(parsed.slices);
   const importedPreferences=validatePreferences(parsed.preferences);
-  if(!ids.every(id=>Object.hasOwn(labels,id))) throw Error('Import must include all 14 labels.');
+  if(!nodeIds.every(id=>Object.hasOwn(labels,id))) throw Error('Import must include all 14 labels.');
   if(!confirm('Replace all current labels, slice bookmarks, and preferences with this file?')) return false;
   overrides=labels;slices=bookmarks;preferences=importedPreferences;persist();return true;
 }

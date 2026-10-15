@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 async function run() {
-  for (const name of ['geometry.js', 'labels.js', 'app.js', 'stereo.js', 'tesseract.js']) {
+  for (const name of ['geometry.js', 'labels.js', 'app.js', 'stereo.js', 'tesseract.js', 'fields.js']) {
     new vm.SourceTextModule(fs.readFileSync(name, 'utf8'));
   }
   const geometry = new vm.SourceTextModule(fs.readFileSync('geometry.js', 'utf8'));
@@ -244,7 +244,44 @@ async function run() {
   const gTurned=tesseractInstance.project([...g.flatPositions.g,g.vertexW.g]);
   const gPrimeTurned=tesseractInstance.project([...g.flatPositions.gPrime,g.vertexW.gPrime]);
   assert(Math.abs(gTurned.z-gPrimeTurned.z)>1,'Turning through the fourth dimension must separate g from gPrime');
-  await app.link(specifier=>specifier==='three'?three:specifier.includes('OrbitControls')?orbit:specifier==='./geometry.js'?model:specifier==='./stereo.js'?stereo:specifier==='./tesseract.js'?tesseract:labels);
+  // Fields (1.1.0): the three-field model, branches by mastery tier, and the panel narrative.
+  const fieldPhi=(1+Math.sqrt(5))/2;
+  assert.deepEqual(g.fieldIds,['fieldX','fieldY','fieldZ']);
+  for(const node of g.activeNodes){
+    const p=g.fieldProfiles[node.id],coords=g.solidPositions[node.id].map(Math.abs);
+    assert.equal(new Set([p.dominant,p.felt,p.blind]).size,3,'Each vertex must have three distinct fields');
+    assert(Math.abs(coords[g.fieldIds.indexOf(p.dominant)]-fieldPhi)<1e-12&&Math.abs(coords[g.fieldIds.indexOf(p.felt)]-1)<1e-12&&coords[g.fieldIds.indexOf(p.blind)]===0,'Fields must read 0 : 1 : φ from the coordinates');
+    assert.equal(p.felt,g.feltFieldOf[p.dominant],'The felt field must depend only on the dominant field');
+    const b=g.fieldBranches[node.id];
+    assert.deepEqual([b.kin.length,b.felt.length,b.blind.length],[1,2,2],'Every vertex must branch 1 kin, 2 felt, 2 blind');
+    assert(b.kin.every(o=>g.fieldProfiles[o].dominant===p.dominant)&&b.felt.every(o=>g.fieldProfiles[o].dominant===p.felt)&&b.blind.every(o=>g.fieldProfiles[o].dominant===p.blind));
+    const opposite=g.fieldOpposites[node.id];
+    assert.equal(g.fieldProfiles[opposite].dominant,p.dominant,'The opposite vertex must share the dominant field');
+    assert(!g.icosahedronEdges.some(e=>e.includes(node.id)&&e.includes(opposite)),'No branch may reach the opposite directly');
+    const routes=g.oppositeRoutes[node.id];
+    assert.equal(routes.length,4,'Exactly four shortest routes to the opposite must cross both other fields');
+    assert.deepEqual(routes.map(r=>r[1]).sort(),[...b.felt,...b.blind].sort(),'Each felt/blind branch must start exactly one crossing route');
+  }
+  assert(g.fieldIds.every(f=>g.fieldMembers[f].length===4),'Each field must lead exactly four vertices');
+  assert.equal(new Set(Object.values(g.feltFieldOf)).size,3,'The felt fields must form a single cycle');
+  assert.deepEqual(g.tierBranchKinds,{aligned:['kin'],adept:['kin','felt'],master:['kin','felt','blind']});
+  const fieldsModule=new vm.SourceTextModule(fs.readFileSync('fields.js','utf8'),{context});
+  await fieldsModule.link(specifier=>specifier==='three'?three:specifier.includes('OrbitControls')?orbit:specifier==='./geometry.js'?model:labels);
+  await fieldsModule.evaluate();const fieldsTest=fieldsModule.namespace;
+  const name=id=>({a:'Alpha',f:'Kin',ePrime:'Mirror',fieldX:'Ex',fieldY:'Why',fieldZ:'Zed'})[id]??id;
+  assert.deepEqual(['aligned','adept','master'].map(tier=>fieldsTest.fieldNarrative('a',tier,name).open),[1,3,5],'Open branch count must follow the mastery tier');
+  const aligned=fieldsTest.fieldNarrative('a','aligned',name),master=fieldsTest.fieldNarrative('a','master',name);
+  assert.equal(aligned.subtitle,'Aligned to Zed');assert(aligned.paragraphs.join(' ').includes('Kin')&&!aligned.paragraphs.join(' ').includes('Ex'),'Aligned text must name the kin and not the blind field');
+  assert(master.showBalanced&&!aligned.showBalanced&&master.paragraphs.join(' ').includes('Mirror'),'Master text must name the opposite and offer the cube');
+  assert(master.paragraphs.join(' ').includes('Zed → Why → Ex → Zed'),'Master text must state the field cycle');
+  const fieldsView=fieldsTest.fieldsHomeDirection,fieldsShadow=g.activeNodes.map(n=>{
+    const p=g.solidPositions[n.id],d=p.reduce((s,v,i)=>s+v*fieldsView[i],0);return p.map((v,i)=>v-d*fieldsView[i]);});
+  let closestPair=Infinity;for(let i=0;i<12;i++)for(let j=i+1;j<12;j++)closestPair=Math.min(closestPair,Math.hypot(...fieldsShadow[i].map((v,k)=>v-fieldsShadow[j][k])));
+  assert(closestPair>0.3,'The Fields home view must show all twelve vertices apart');
+  const fieldsHtml=fs.readFileSync('index.html','utf8');
+  assert(fieldsHtml.includes('id="fields-tab"')&&fieldsHtml.includes('>Fields</button>')&&fieldsHtml.includes('id="fields-panel"'),'Fields tab and panel must exist');
+  assert.equal(l.getLabel('fieldX'),'Field X','Field names must default to placeholders');
+  await app.link(specifier=>specifier==='three'?three:specifier.includes('OrbitControls')?orbit:specifier==='./geometry.js'?model:specifier==='./stereo.js'?stereo:specifier==='./tesseract.js'?tesseract:specifier==='./fields.js'?fieldsModule:labels);
   await app.evaluate();const appTest=app.namespace;
   const clockwiseOrder=points=>{
     const center={x:points.reduce((sum,p)=>sum+p.x,0)/points.length,y:points.reduce((sum,p)=>sum+p.y,0)/points.length};
@@ -414,6 +451,7 @@ async function run() {
   assert(pageHtml.includes('id="mv-stereo-bookmarks"'),'mv-stereo-bookmarks list must exist');
   assert(pageHtml.includes('id="mv-stereo-bookmarks-empty"'),'mv-stereo-bookmarks-empty element must exist');
   console.log('PASS: stereo camera ordering, vertical alignment, paired rendering and per-eye occlusion; border feedback, geometry, fold order, shadow triangles, reveal, saved preferences and bookmarks; fourth-dimension rotation/projection and g/gPrime separation.');
+  console.log('PASS: Fields — 0 : 1 : φ profiles, felt-field cycle, 1/2/2 branches by tier, opposite routes, narrative, home view, field names.');
   console.log('PASS: Multiverse geometry — cube positions, edges, square, node sets, w-values, home direction.');
   console.log('PASS: Multiverse panel — stage text, shadow tool, save-angle form, bookmarks, label editor all present.');
   console.log('Edge counts:', counts);

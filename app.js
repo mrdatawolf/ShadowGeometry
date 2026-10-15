@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {StereoViewer} from './stereo.js';
 import {TesseractViewer} from './tesseract.js';
-import {activeNodes,vertexColors,edges,flatPositions,solidPositions,solidHomeDirection,sums,findVisualSnap,getShadowDiagram,getShadowAlignment,getOccludedVertexIds,greaterVertexW,multiverseNodes,cubePositions,cubeEdges,multiverseVertexW,squarePositions,squareEdges,cubeHomeDirection} from './geometry.js';
+import {FieldsViewer,fieldNarrative} from './fields.js';
+import {activeNodes,vertexColors,edges,flatPositions,solidPositions,solidHomeDirection,sums,findVisualSnap,getShadowDiagram,getShadowAlignment,getOccludedVertexIds,greaterVertexW,multiverseNodes,cubePositions,cubeEdges,multiverseVertexW,squarePositions,squareEdges,cubeHomeDirection,fieldIds,fieldColors,fieldProfiles,fieldMembers} from './geometry.js';
 import {loadConfig,getLabel,getSlices,getPreferences,setPreferences,subscribe,renameLabel,saveSlice,renameSlice,deleteSlice,exportConfig,importConfig,persistenceMessage} from './labels.js';
 
 const $=id=>document.getElementById(id);
@@ -21,6 +22,12 @@ const lastView=new THREE.Vector3();
 const orbitStartView=new THREE.Vector3();
 let scene,camera,renderer,controls;
 let activeView='flat',requestedStage=1,stereoViewer,tesseractViewer;
+let fieldsViewer,fieldsVertex='a',fieldsTier='aligned';
+const standaloneViews=['stereo','tesseract','fields'];
+// The last world and tab are remembered in this browser, so a reload reopens them.
+const TAB_KEY='shadowGeometry.lastTab';
+function saveTab(){try{localStorage.setItem(TAB_KEY,JSON.stringify({world:activeWorld,greater:activeView,multiverse:activeMvView}));}catch{}}
+function loadTab(){try{return JSON.parse(localStorage.getItem(TAB_KEY)||'null');}catch{return null;}}
 let activeWorld='multiverse',activeMvView='mv-flat',mvTesseractViewer,mvStereoViewer;
 const objects=new Map(), lines=new Map();
 const viewport=$('viewport');
@@ -320,6 +327,37 @@ function editor(){
     input.addEventListener('input',()=>{if(input.value.trim()){renameLabel(node.id,input.value);input.setCustomValidity('');}else input.setCustomValidity('A label cannot be empty.');});
     input.addEventListener('blur',()=>{if(!input.value.trim()){input.value=getLabel(node.id);input.setCustomValidity('');}});label.append(input);$('label-editor').append(label);}
 }
+function fieldsEditor(){
+  for(const field of fieldIds){const label=document.createElement('label');label.textContent=field;label.style.color=fieldColors[field];const input=document.createElement('input');input.value=getLabel(field);input.maxLength=120;input.dataset.id=field;input.setAttribute('aria-label',`Display name for ${field}`);
+    input.addEventListener('input',()=>{if(input.value.trim()){renameLabel(field,input.value);input.setCustomValidity('');}else input.setCustomValidity('A field name cannot be empty.');});
+    input.addEventListener('blur',()=>{if(!input.value.trim()){input.value=getLabel(field);input.setCustomValidity('');}});label.append(input);$('field-name-editor').append(label);}
+}
+// The Fields tab's side panel: vertex picker, mastery stepper, field mix and narrative.
+function fieldsPanel(){
+  const dot=field=>{const el=document.createElement('i');el.className='field-dot';el.style.background=fieldColors[field];return el;};
+  $('fields-legend').replaceChildren(...fieldIds.map(field=>{const el=document.createElement('span');el.append(dot(field),getLabel(field));return el;}));
+  const select=$('fields-vertex');
+  select.replaceChildren(...fieldIds.map(field=>{const group=document.createElement('optgroup');group.label=getLabel(field);
+    for(const id of fieldMembers[field]){const option=document.createElement('option');option.value=id;option.textContent=getLabel(id);group.append(option);}return group;}));
+  select.value=fieldsVertex;
+  for(const button of document.querySelectorAll('.tier-stepper button'))button.setAttribute('aria-pressed',String(button.dataset.tier===fieldsTier));
+  const profile=fieldProfiles[fieldsVertex],sensed={[profile.dominant]:true,[profile.felt]:fieldsTier!=='aligned',[profile.blind]:fieldsTier==='master'};
+  const rows=[[profile.dominant,'φ'],[profile.felt,'1'],[profile.blind,'0']];
+  const bar=document.createElement('div');bar.className='field-mix';
+  const table=document.createElement('div');table.className='field-mix-rows';
+  for(const [field,value] of rows){
+    const segment=document.createElement('span');segment.style.background=fieldColors[field];segment.style.width=`${profile.mix[field]*100}%`;segment.classList.toggle('unsensed',!sensed[field]);bar.append(segment);
+    const name=document.createElement('span');name.append(dot(field),getLabel(field));
+    const amount=document.createElement('span');amount.textContent=value;
+    const state=document.createElement('span');state.textContent=field===profile.dominant?'dominant':!sensed[field]?(field===profile.blind?'unseen':'not yet felt'):field===profile.felt?'felt':'found';
+    for(const el of [name,amount,state]){el.classList.toggle('unsensed',!sensed[field]);table.append(el);}
+  }
+  $('fields-mix').replaceChildren(bar,table);
+  const story=fieldNarrative(fieldsVertex,fieldsTier,getLabel),add=(tag,text,className)=>{const el=document.createElement(tag);el.textContent=text;if(className)el.className=className;$('fields-text').append(el);};
+  $('fields-text').replaceChildren();add('h2',story.title);add('p',`${story.subtitle} · ${story.open} of 5 branches open`,'subtitle');for(const text of story.paragraphs)add('p',text);
+  $('fields-balanced').hidden=!story.showBalanced;
+  fieldsViewer?.setSelection(fieldsVertex,fieldsTier);
+}
 function mvEditor(){
   for(const node of multiverseNodes){const label=document.createElement('label');label.textContent=node.id;label.style.color=vertexColors[node.id];const input=document.createElement('input');input.value=getLabel(node.id);input.maxLength=120;input.dataset.id=node.id;input.setAttribute('aria-label',`Display name for ${node.id}`);
     input.addEventListener('input',()=>{if(input.value.trim()){renameLabel(node.id,input.value);input.setCustomValidity('');}else input.setCustomValidity('A label cannot be empty.');});
@@ -344,6 +382,8 @@ function refresh(){
   for(const [id,obj] of objects)obj.label.textContent=getLabel(id);
   for(const [id,obj] of mvObjects)obj.label.textContent=getLabel(id);
   for(const input of $('label-editor').querySelectorAll('input'))if(input!==document.activeElement)input.value=getLabel(input.dataset.id);
+  for(const input of $('field-name-editor').querySelectorAll('input'))if(input!==document.activeElement)input.value=getLabel(input.dataset.id);
+  fieldsPanel();
   for(const input of $('mv-label-editor').querySelectorAll('input'))if(input!==document.activeElement)input.value=getLabel(input.dataset.id);
   $('tesseract-g-note').textContent=`${getLabel('g')} and ${getLabel('gPrime')}`;
   panel();mvPanel();bookmarks();$('status').textContent=persistenceMessage;
@@ -434,17 +474,17 @@ function updateMvGeometry(){
   }
 }
 async function main(){
-  await loadConfig();setup();editor();mvEditor();subscribe(refresh);refresh();
+  await loadConfig();setup();editor();fieldsEditor();mvEditor();subscribe(refresh);refresh();
   const selectView=name=>{
-    activeView=name;
-    $('explorer-panel').hidden=name==='stereo'||name==='tesseract';
-    $('stereo-panel').hidden=name!=='stereo';$('tesseract-panel').hidden=name!=='tesseract';
+    activeView=name;saveTab();
+    $('explorer-panel').hidden=standaloneViews.includes(name);
+    $('stereo-panel').hidden=name!=='stereo';$('tesseract-panel').hidden=name!=='tesseract';$('fields-panel').hidden=name!=='fields';
     $('explorer-panel').setAttribute('aria-labelledby',`${name==='flat'?'flat':'explorer'}-tab`);
     for(const mode of modes){
       $(`${mode}-tab`).setAttribute('aria-selected',String(mode===name));
       $(`${mode}-tab`).tabIndex=mode===name?0:-1;
     }
-    if(name!=='stereo'&&name!=='tesseract'){
+    if(!standaloneViews.includes(name)){
       requestedStage=name==='flat'?1:2;
       if(!transition&&stage!==requestedStage)changeStage(requestedStage-stage);
     }
@@ -455,14 +495,20 @@ async function main(){
         stereoViewer??=new StereoViewer($('stereo-viewport'),$('stereo-card'),$('stereo-status'));
         stereoViewer.setActive(true);$('stereo-message').hidden=true;
       }catch(error){$('stereo-message').textContent=`Stereo view could not start: ${error.message}`;}
-      tesseractViewer?.setActive(false);
+      tesseractViewer?.setActive(false);fieldsViewer?.setActive(false);
     }else if(name==='tesseract'){
       try{
         tesseractViewer??=createTesseractViewer();
         tesseractViewer.setActive(true);$('tesseract-message').hidden=true;
       }catch(error){$('tesseract-message').textContent=`Fourth view could not start: ${error.message}`;}
-      stereoViewer?.setActive(false);
-    }else{stereoViewer?.setActive(false);tesseractViewer?.setActive(false);resize();}
+      stereoViewer?.setActive(false);fieldsViewer?.setActive(false);
+    }else if(name==='fields'){
+      try{
+        fieldsViewer??=new FieldsViewer($('fields-viewport'),{labelsContainer:$('fields-labels'),onSelect:id=>{fieldsVertex=id;fieldsPanel();}});
+        fieldsViewer.setSelection(fieldsVertex,fieldsTier);fieldsViewer.setActive(true);$('fields-message').hidden=true;
+      }catch(error){$('fields-message').textContent=`Fields view could not start: ${error.message}`;}
+      stereoViewer?.setActive(false);tesseractViewer?.setActive(false);
+    }else{stereoViewer?.setActive(false);tesseractViewer?.setActive(false);fieldsViewer?.setActive(false);resize();}
   };
   const createTesseractViewer=()=>{
     const viewer=new TesseractViewer($('tesseract-viewport'),$('tesseract-card'),$('tesseract-status'),
@@ -473,7 +519,7 @@ async function main(){
     };
     return viewer;
   };
-  const modes=['flat','explorer','stereo','tesseract'];
+  const modes=['flat','explorer','stereo','tesseract','fields'];
   for(const mode of modes){
     $(`${mode}-tab`).onclick=()=>selectView(mode);
     $(`${mode}-tab`).onkeydown=event=>{
@@ -503,7 +549,7 @@ async function main(){
        circumradius:Math.sqrt(3)+0.095,enableReveal:false,snapFn:null,upRef:cubeUp});
   };
   const selectMvView=name=>{
-    activeMvView=name;mvPanel();
+    activeMvView=name;saveTab();mvPanel();
     const mvModes=['mv-flat','mv-explorer','mv-stereo','mv-tesseract'];
     $('mv-explorer-panel').hidden=name!=='mv-flat'&&name!=='mv-explorer';
     $('mv-stereo-panel').hidden=name!=='mv-stereo';
@@ -540,7 +586,7 @@ async function main(){
     }else{mvStereoViewer?.setActive(false);mvTesseractViewer?.setActive(false);}
   };
   const selectWorld=name=>{
-    activeWorld=name;
+    activeWorld=name;saveTab();
     $('greater-world-btn').setAttribute('aria-pressed',String(name==='greater'));
     $('multiverse-world-btn').setAttribute('aria-pressed',String(name==='multiverse'));
     $('greater-view-tabs').hidden=name!=='greater';
@@ -550,12 +596,16 @@ async function main(){
       mvTesseractViewer?.setActive(false);mvStereoViewer?.setActive(false);
       selectView(activeView);
     }else{
-      $('explorer-panel').hidden=true;$('stereo-panel').hidden=true;$('tesseract-panel').hidden=true;
-      stereoViewer?.setActive(false);tesseractViewer?.setActive(false);
+      $('explorer-panel').hidden=true;$('stereo-panel').hidden=true;$('tesseract-panel').hidden=true;$('fields-panel').hidden=true;
+      stereoViewer?.setActive(false);tesseractViewer?.setActive(false);fieldsViewer?.setActive(false);
       selectMvView(activeMvView);
     }
   };
   $('greater-world-btn').onclick=()=>selectWorld('greater');
+  $('fields-vertex').onchange=()=>{fieldsVertex=$('fields-vertex').value;fieldsPanel();};
+  for(const button of document.querySelectorAll('.tier-stepper button'))button.onclick=()=>{fieldsTier=button.dataset.tier;fieldsPanel();};
+  $('fields-home').onclick=()=>fieldsViewer?.reset();
+  $('fields-balanced').onclick=()=>{selectWorld('multiverse');selectMvView('mv-explorer');};
   $('multiverse-world-btn').onclick=()=>selectWorld('multiverse');
   const mvModes=['mv-flat','mv-explorer','mv-stereo','mv-tesseract'];
   for(const mode of mvModes){
@@ -608,7 +658,10 @@ async function main(){
   $('snap-distance').oninput=()=>setPreferences({snapDistancePixels:Number($('snap-distance').value)});
   $('snap-distance-default').onclick=()=>{snapPending=false;setPreferences({snapDistancePixels:18});};
   $('import-file').onchange=async event=>{const file=event.target.files[0];if(file)try{await importConfig(file);}catch(e){$('status').textContent=`Import failed: ${e.message}`;}event.target.value='';};
-  let last=performance.now();renderer.setAnimationLoop(now=>{const dt=Math.min(now-last,60);last=now;if(activeWorld!=='greater'||activeView==='stereo'||activeView==='tesseract')return;if(!transition&&stage!==requestedStage)changeStage(requestedStage-stage);tickMotion(dt);snapView();camera.updateMatrixWorld();updateGeometry();if(stage===2)shadow();renderer.render(scene,camera);});
-  selectWorld('multiverse');
+  let last=performance.now();renderer.setAnimationLoop(now=>{const dt=Math.min(now-last,60);last=now;if(activeWorld!=='greater'||standaloneViews.includes(activeView))return;if(!transition&&stage!==requestedStage)changeStage(requestedStage-stage);tickMotion(dt);snapView();camera.updateMatrixWorld();updateGeometry();if(stage===2)shadow();renderer.render(scene,camera);});
+  const savedTab=loadTab();
+  if(modes.includes(savedTab?.greater))activeView=savedTab.greater;
+  if(mvModes.includes(savedTab?.multiverse))activeMvView=savedTab.multiverse;
+  selectWorld(savedTab?.world==='greater'?'greater':'multiverse');
 }
 main().catch(error=>{$('boot-message').hidden=false;$('boot-message').textContent=`Visualization could not start: ${error.message}. Serve this directory over HTTP and check access to the three.js CDN.`;console.error(error);});
